@@ -27,3 +27,29 @@ async fn main() {
         log::error!("Failed to save products: {e}");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn saves_products_to_file() {
+        let product = Product {
+            sku: "1".into(),
+            name: "Tea".into(),
+            price: 10.0,
+            category: "Drinks".into(),
+            units: "шт".into(),
+            amount: 1.0,
+            description: "Tasty".into(),
+            url: "http://example.com".into(),
+        };
+        let file = NamedTempFile::new().unwrap();
+        save_products_as_json(&[product.clone()], file.path().to_str().unwrap()).unwrap();
+        let contents = fs::read_to_string(file.path()).unwrap();
+        let parsed: Vec<Product> = serde_json::from_str(&contents).unwrap();
+        assert_eq!(parsed, vec![product]);
+    }
+}
