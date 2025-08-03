@@ -21,7 +21,7 @@ impl<'a> DieselProductRepository<'a> {
 
 impl ProductReader for DieselProductRepository<'_> {
     fn list(&self, hub_id: i32) -> RepositoryResult<Vec<Product>> {
-        use pushkind_common::schema::dantes::{products, crawlers};
+        use pushkind_common::schema::dantes::{crawlers, products};
 
         let mut conn = self.pool.get()?;
 

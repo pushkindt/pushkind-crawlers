@@ -31,8 +31,9 @@ pub async fn process_benchmark_message(msg: i32, db_pool: &DbPool) {
     let benchmark_repo = DieselBenchmarkRepository::new(db_pool);
 
     // Initialize embedder for multilingual E5 large
-    let mut embedder = TextEmbedding::try_new(InitOptions::new(EmbeddingModel::MultilingualE5Large))
-        .expect("failed to init embedder");
+    let mut embedder =
+        TextEmbedding::try_new(InitOptions::new(EmbeddingModel::MultilingualE5Large))
+            .expect("failed to init embedder");
 
     // Fetch all products
     let mut conn = db_pool.get().expect("db connection");
