@@ -1,6 +1,7 @@
 use diesel::prelude::*;
 use pushkind_common::db::DbPool;
 use pushkind_common::domain::product::NewProduct;
+use pushkind_common::models::product::NewProduct as DbNewProduct;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::ProductWriter;
@@ -21,7 +22,13 @@ impl ProductWriter for DieselProductRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
-        Ok(0)
+        let new_products: Vec<DbNewProduct> = products.iter().cloned().map(Into::into).collect();
+
+        let inserted = diesel::insert_into(products::table)
+            .values(&new_products)
+            .execute(&mut conn)?;
+
+        Ok(inserted)
     }
 
     fn update(&self, products: &[NewProduct]) -> RepositoryResult<usize> {
@@ -29,7 +36,19 @@ impl ProductWriter for DieselProductRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
-        Ok(0)
+        let mut affected_rows = 0;
+        for product in products.iter().cloned() {
+            let db_product: DbNewProduct = product.into();
+            let rows = diesel::insert_into(products::table)
+                .values(&db_product)
+                .on_conflict((products::crawler_id, products::sku))
+                .do_update()
+                .set(&db_product)
+                .execute(&mut conn)?;
+            affected_rows += rows;
+        }
+
+        Ok(affected_rows)
     }
 
     fn delete(&self, crawler_id: i32) -> RepositoryResult<usize> {
@@ -37,6 +56,24 @@ impl ProductWriter for DieselProductRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
-        Ok(0)
+        let deleted = conn.transaction(|conn| {
+            // collect product ids for the given crawler
+            let ids: Vec<i32> = products::table
+                .filter(products::crawler_id.eq(crawler_id))
+                .select(products::id)
+                .load(conn)?;
+
+            if !ids.is_empty() {
+                diesel::delete(
+                    product_benchmark::table.filter(product_benchmark::product_id.eq_any(&ids)),
+                )
+                .execute(conn)?;
+            }
+
+            diesel::delete(products::table.filter(products::crawler_id.eq(crawler_id)))
+                .execute(conn)
+        })?;
+
+        Ok(deleted)
     }
 }
