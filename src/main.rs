@@ -18,7 +18,7 @@ fn save_products_as_json(products: &[Product], path: &str) -> std::io::Result<()
 #[derive(Deserialize, Debug)]
 enum ZMQMessage {
     CrawlerSelector(String),
-    ProductURLs(Vec<String>),
+    ProductURLs((String, Vec<String>)),
 }
 
 #[tokio::main]
@@ -39,7 +39,7 @@ async fn main() {
         let msg = responder.recv_bytes(0).unwrap();
         match serde_json::from_slice::<ZMQMessage>(&msg) {
             Ok(parsed) => {
-                log::info!("Received: {:?}", parsed);
+                log::info!("Received: {parsed:?}");
 
                 tokio::spawn(async move {
                     let rusteaco = WebstoreCrawlerRusteaco::new(5);
