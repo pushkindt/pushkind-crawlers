@@ -4,6 +4,7 @@ use std::io::Write;
 
 use serde::Deserialize;
 
+use futures::future;
 use pushkind_crawlers::crawlers::Crawler;
 use pushkind_crawlers::crawlers::rusteaco::WebstoreCrawlerRusteaco;
 use pushkind_crawlers::domain::product::Product;
@@ -41,23 +42,46 @@ async fn main() {
             Ok(parsed) => {
                 log::info!("Received: {parsed:?}");
 
-                tokio::spawn(async move {
-                    let rusteaco = WebstoreCrawlerRusteaco::new(5);
-
-                    let products = rusteaco.get_products().await;
-
-                    if let Err(e) = save_products_as_json(&products, "products.json") {
-                        log::error!("Failed to save products: {e}");
+                match parsed {
+                    ZMQMessage::CrawlerSelector(crawler) => {
+                        if crawler == "rusteaco" {
+                            tokio::spawn(async move {
+                                let rusteaco = WebstoreCrawlerRusteaco::new(5);
+                                let products = rusteaco.get_products().await;
+                                if let Err(e) = save_products_as_json(&products, "products.json") {
+                                    log::error!("Failed to save products: {e}");
+                                }
+                            });
+                        } else {
+                            log::warn!("Unknown crawler");
+                        }
                     }
-                });
-
-            },
+                    ZMQMessage::ProductURLs((crawler, urls)) => {
+                        if crawler == "rusteaco" {
+                            tokio::spawn(async move {
+                                let rusteaco = WebstoreCrawlerRusteaco::new(5);
+                                let tasks = urls.into_iter().map(|url| {
+                                    let crawler = &rusteaco;
+                                    async move { crawler.get_product(&url).await }
+                                });
+                                let products = future::join_all(tasks)
+                                    .await
+                                    .into_iter()
+                                    .flatten()
+                                    .collect::<Vec<_>>();
+                                if let Err(e) = save_products_as_json(&products, "products.json") {
+                                    log::error!("Failed to save products: {e}");
+                                }
+                            });
+                        } else {
+                            log::warn!("Unknown crawler");
+                        }
+                    }
+                }
+            }
             Err(e) => log::error!("Failed to parse JSON: {e}"),
         }
-
     }
-
-
 }
 
 #[cfg(test)]
