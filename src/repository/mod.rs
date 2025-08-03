@@ -14,3 +14,7 @@ pub trait ProductWriter {
 pub trait CrawlerReader {
     fn get(&self, selector: &str) -> RepositoryResult<Crawler>;
 }
+
+pub trait CrawlerWriter {
+    fn update(&self, crawler_id: i32) -> RepositoryResult<usize>;
+}

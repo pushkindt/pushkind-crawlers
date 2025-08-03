@@ -9,6 +9,7 @@ use serde::Deserialize;
 use pushkind_crawlers::crawlers::Crawler;
 use pushkind_crawlers::crawlers::rusteaco::WebstoreCrawlerRusteaco;
 use pushkind_crawlers::repository::CrawlerReader;
+use pushkind_crawlers::repository::CrawlerWriter;
 use pushkind_crawlers::repository::ProductWriter;
 use pushkind_crawlers::repository::crawler::DieselCrawlerRepository;
 use pushkind_crawlers::repository::product::DieselProductRepository;
@@ -68,6 +69,11 @@ async fn proccess_zmq_message(msg: ZMQMessage, db_pool: &DbPool) {
             }
         }
     }
+
+    if let Err(e) = crawler_repo.update(crawler.id) {
+        log::error!("Error updating crawler stats: {e}");
+    }
+
     log::info!("Finished processing: {selector}");
 }
 
