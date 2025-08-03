@@ -63,6 +63,7 @@ async fn proccess_zmq_message(msg: ZMQMessage, db_pool: &DbPool) {
             }
         }
     }
+    log::info!("Finished processing: {msg:?}");
 }
 
 #[tokio::main]
