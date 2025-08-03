@@ -4,13 +4,12 @@ use std::sync::Arc;
 use futures::future;
 use pushkind_common::db::DbPool;
 use pushkind_common::db::establish_connection_pool;
-use pushkind_common::domain::product::NewProduct;
 use serde::Deserialize;
 
 use pushkind_crawlers::crawlers::Crawler;
 use pushkind_crawlers::crawlers::rusteaco::WebstoreCrawlerRusteaco;
-use pushkind_crawlers::repository::ProductWriter;
 use pushkind_crawlers::repository::CrawlerReader;
+use pushkind_crawlers::repository::ProductWriter;
 use pushkind_crawlers::repository::crawler::DieselCrawlerRepository;
 use pushkind_crawlers::repository::product::DieselProductRepository;
 
@@ -48,7 +47,6 @@ async fn proccess_zmq_message(msg: ZMQMessage, db_pool: &DbPool) {
             let products = rusteaco.get_products().await;
             if let Err(e) = product_repo.create(&products) {
                 log::error!("Error creating products: {e}");
-                return;
             }
         } else {
             let tasks = urls.into_iter().map(|url| {
@@ -62,7 +60,6 @@ async fn proccess_zmq_message(msg: ZMQMessage, db_pool: &DbPool) {
                 .collect::<Vec<_>>();
             if let Err(e) = product_repo.update(&products) {
                 log::error!("Error updating products: {e}");
-                return;
             }
         }
     }

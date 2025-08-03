@@ -308,8 +308,8 @@ mod tests {
         let (name, category, description, url) = dummy_product_fields();
         let product = variant_to_product(variant, name, category, description, url);
         assert_eq!(product.units, "кг");
-        assert!((product.amount - 0.5).abs() < f32::EPSILON);
-        assert!((product.price - 10.5).abs() < f32::EPSILON);
+        assert!((product.amount - 0.5).abs() < f64::EPSILON);
+        assert!((product.price - 10.5).abs() < f64::EPSILON);
     }
 
     #[test]
