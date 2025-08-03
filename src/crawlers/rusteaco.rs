@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use html_escape::decode_html_entities;
@@ -157,12 +158,21 @@ impl Crawler for WebstoreCrawlerRusteaco {
             tasks.push(async move { self.get_product_links(page_link).await });
         }
         let product_links = futures::future::join_all(tasks).await;
+
+        // Deduplicate product links to avoid fetching the same page multiple times.
+        let unique_links: HashSet<String> = product_links.into_iter().flatten().collect();
+
         let mut tasks = vec![];
-        for product_link in product_links.iter().flatten() {
-            tasks.push(async move { self.get_product(product_link).await });
+        for link in unique_links {
+            tasks.push(async move { self.get_product(&link).await });
         }
         let products = futures::future::join_all(tasks).await;
-        products.into_iter().flatten().collect()
+
+        // Flatten and ensure uniqueness by product URL in the final result.
+        let mut products: Vec<Product> = products.into_iter().flatten().collect();
+        let mut seen_urls = HashSet::new();
+        products.retain(|p| seen_urls.insert(p.url.clone()));
+        products
     }
 
     async fn get_product(&self, url: &str) -> Vec<Product> {
