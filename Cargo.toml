@@ -21,6 +21,7 @@ zmq = "0.10.0"
 pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", features = ["dantes"] }
 diesel = { version = "2.2.12", features = ["sqlite", "r2d2", "chrono", "returning_clauses_for_sqlite_3_35"] }
 chrono = { version = "0.4.41", features = ["serde"] }
+fastembed = "5.0.0"
 
 [dev-dependencies]
 tempfile = "3.10.1"
