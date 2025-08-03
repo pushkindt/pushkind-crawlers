@@ -26,7 +26,7 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
         let mut conn = self.pool.get()?;
 
         let benchmark: DbBenchmark = benchmarks::table
-            .filter(benchmarks::benchmark_id.eq(benchmark_id))
+            .filter(benchmarks::id.eq(benchmark_id))
             .first(&mut conn)?;
 
         Ok(benchmark.into())

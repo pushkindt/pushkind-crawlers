@@ -5,6 +5,7 @@ use pushkind_common::repository::errors::RepositoryResult;
 
 pub mod crawler;
 pub mod product;
+pub mod benchmark;
 
 pub trait ProductReader {
     fn list(&self, crawler_id: i32) -> RepositoryResult<Vec<Product>>;
