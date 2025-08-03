@@ -1,81 +1,11 @@
 use std::env;
 use std::sync::Arc;
 
-use futures::future;
-use pushkind_common::db::DbPool;
 use pushkind_common::db::establish_connection_pool;
-use serde::Deserialize;
 
-use pushkind_crawlers::crawlers::Crawler;
-use pushkind_crawlers::crawlers::rusteaco::WebstoreCrawlerRusteaco;
-use pushkind_crawlers::repository::CrawlerReader;
-use pushkind_crawlers::repository::CrawlerWriter;
-use pushkind_crawlers::repository::ProductWriter;
-use pushkind_crawlers::repository::crawler::DieselCrawlerRepository;
-use pushkind_crawlers::repository::product::DieselProductRepository;
-
-#[derive(Deserialize, Debug)]
-enum ZMQMessage {
-    CrawlerSelector(String),
-    ProductURLs((String, Vec<String>)),
-}
-
-async fn proccess_zmq_message(msg: ZMQMessage, db_pool: &DbPool) {
-    log::info!("Received: {msg:?}");
-    let product_repo = DieselProductRepository::new(db_pool);
-    let crawler_repo = DieselCrawlerRepository::new(db_pool);
-
-    let (selector, urls) = match msg {
-        ZMQMessage::CrawlerSelector(selector) => (selector, vec![]),
-        ZMQMessage::ProductURLs((selector, urls)) => (selector, urls),
-    };
-
-    let crawler = match crawler_repo.get(&selector) {
-        Ok(crawler) => crawler,
-        Err(e) => {
-            log::error!("Error retrieving selector: {e}");
-            return;
-        }
-    };
-
-    if crawler.processing {
-        log::warn!("Crawler {selector} is already running");
-        return;
-    }
-
-    if selector == "rusteaco" {
-        let rusteaco = WebstoreCrawlerRusteaco::new(5, crawler.id);
-        if urls.is_empty() {
-            if let Err(e) = product_repo.delete(crawler.id) {
-                log::error!("Error deleting products: {e}");
-                return;
-            }
-            let products = rusteaco.get_products().await;
-            if let Err(e) = product_repo.create(&products) {
-                log::error!("Error creating products: {e}");
-            }
-        } else {
-            let tasks = urls.into_iter().map(|url| {
-                let crawler = &rusteaco;
-                async move { crawler.get_product(&url).await }
-            });
-            let products = future::join_all(tasks)
-                .await
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            if let Err(e) = product_repo.update(&products) {
-                log::error!("Error updating products: {e}");
-            }
-        }
-    }
-
-    if let Err(e) = crawler_repo.update(crawler.id) {
-        log::error!("Error updating crawler stats: {e}");
-    }
-
-    log::info!("Finished processing: {selector}");
-}
+use pushkind_crawlers::processing::ZMQMessage;
+use pushkind_crawlers::processing::benchmark::process_benchmark_message;
+use pushkind_crawlers::processing::crawler::proccess_crawler_message;
 
 #[tokio::main]
 async fn main() {
@@ -105,7 +35,16 @@ async fn main() {
         match serde_json::from_slice::<ZMQMessage>(&msg) {
             Ok(parsed) => {
                 let pool_clone = Arc::clone(&pool);
-                tokio::spawn(async move { proccess_zmq_message(parsed, &pool_clone).await });
+                tokio::spawn(async move {
+                    match parsed {
+                        ZMQMessage::Crawler(crawler) => {
+                            proccess_crawler_message(crawler, &pool_clone).await
+                        }
+                        ZMQMessage::Benchmark(benchmark) => {
+                            process_benchmark_message(benchmark, &pool_clone).await
+                        }
+                    }
+                });
             }
             Err(e) => log::error!("Failed to parse JSON: {e}"),
         }
