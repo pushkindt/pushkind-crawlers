@@ -41,7 +41,7 @@ impl ProductWriter for DieselProductRepository<'_> {
             let db_product: DbNewProduct = product.into();
             let rows = diesel::insert_into(products::table)
                 .values(&db_product)
-                .on_conflict((products::crawler_id, products::sku))
+                .on_conflict((products::crawler_id, products::url))
                 .do_update()
                 .set(&db_product)
                 .execute(&mut conn)?;
