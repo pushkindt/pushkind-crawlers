@@ -37,6 +37,11 @@ async fn proccess_zmq_message(msg: ZMQMessage, db_pool: &DbPool) {
         }
     };
 
+    if crawler.processing {
+        log::warn!("Crawler {selector} is already running");
+        return;
+    }
+
     if selector == "rusteaco" {
         let rusteaco = WebstoreCrawlerRusteaco::new(5, crawler.id);
         if urls.is_empty() {
