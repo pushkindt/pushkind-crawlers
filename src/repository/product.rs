@@ -1,3 +1,4 @@
+use chrono::Utc;
 use diesel::prelude::*;
 use pushkind_common::db::DbPool;
 use pushkind_common::domain::product::NewProduct;
@@ -43,7 +44,7 @@ impl ProductWriter for DieselProductRepository<'_> {
                 .values(&db_product)
                 .on_conflict((products::crawler_id, products::url))
                 .do_update()
-                .set(&db_product)
+                .set((&db_product, products::updated_at.eq(Utc::now().naive_utc())))
                 .execute(&mut conn)?;
             affected_rows += rows;
         }
