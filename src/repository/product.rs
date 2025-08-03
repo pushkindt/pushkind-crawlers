@@ -1,10 +1,12 @@
+use bytemuck::cast_slice;
 use chrono::Utc;
 use diesel::prelude::*;
 use pushkind_common::db::DbPool;
-use pushkind_common::domain::product::NewProduct;
-use pushkind_common::models::product::NewProduct as DbNewProduct;
+use pushkind_common::domain::product::{NewProduct, Product};
+use pushkind_common::models::product::{NewProduct as DbNewProduct, Product as DbProduct};
 use pushkind_common::repository::errors::RepositoryResult;
 
+use crate::repository::ProductReader;
 use crate::repository::ProductWriter;
 
 pub struct DieselProductRepository<'a> {
@@ -14,6 +16,20 @@ pub struct DieselProductRepository<'a> {
 impl<'a> DieselProductRepository<'a> {
     pub fn new(pool: &'a DbPool) -> Self {
         Self { pool }
+    }
+}
+
+impl ProductReader for DieselProductRepository<'_> {
+    fn list(&self, crawler_id: i32) -> RepositoryResult<Vec<Product>> {
+        use pushkind_common::schema::dantes::products;
+
+        let mut conn = self.pool.get()?;
+
+        let products: Vec<DbProduct> = products::table
+            .filter(products::crawler_id.eq(crawler_id))
+            .load(&mut conn)?;
+
+        Ok(products.into_iter().map(Into::into).collect())
     }
 }
 
@@ -50,6 +66,21 @@ impl ProductWriter for DieselProductRepository<'_> {
         }
 
         Ok(affected_rows)
+    }
+
+    fn set_embedding(&self, product_id: i32, embedding: &[f32]) -> RepositoryResult<usize> {
+        use pushkind_common::schema::dantes::products;
+
+        let mut conn = self.pool.get()?;
+
+        // Convert &[f32] to &[u8]
+        let blob: Vec<u8> = cast_slice(embedding).to_vec();
+
+        let affected = diesel::update(products::table.filter(products::id.eq(product_id)))
+            .set(products::embedding.eq(blob))
+            .execute(&mut conn)?;
+
+        Ok(affected)
     }
 
     fn delete(&self, crawler_id: i32) -> RepositoryResult<usize> {
