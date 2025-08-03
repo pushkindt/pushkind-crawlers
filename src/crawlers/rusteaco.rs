@@ -73,7 +73,7 @@ impl WebstoreCrawlerRusteaco {
         let _permit = self.semaphore.acquire().await.ok()?;
         let res = self.client.get(url).send().await.ok()?;
         if res.status() != 200 {
-            log::warn!("Failed to get URL {}: {}", url, res.status());
+            log::error!("Failed to get URL {}: {}", url, res.status());
             return None;
         }
         let text = res.text().await.ok()?;
@@ -84,7 +84,7 @@ impl WebstoreCrawlerRusteaco {
         let document = match self.fetch_html(self.base_url.as_str()).await {
             Some(doc) => doc,
             None => {
-                log::warn!("Failed to parse HTML {}", self.base_url);
+                log::error!("Failed to parse HTML {}", self.base_url);
                 return vec![];
             }
         };
@@ -105,7 +105,7 @@ impl WebstoreCrawlerRusteaco {
         let document = match self.fetch_html(url).await {
             Some(doc) => doc,
             None => {
-                log::warn!("Failed to parse HTML {url}");
+                log::error!("Failed to parse HTML {url}");
                 return vec![];
             }
         };
@@ -159,7 +159,7 @@ impl WebstoreCrawlerRusteaco {
         let document = match self.fetch_html(url).await {
             Some(doc) => doc,
             None => {
-                log::warn!("Failed to parse HTML {url}");
+                log::error!("Failed to parse HTML {url}");
                 return vec![];
             }
         };
@@ -212,7 +212,7 @@ impl Crawler for WebstoreCrawlerRusteaco {
         let document = match self.fetch_html(url).await {
             Some(doc) => doc,
             None => {
-                log::warn!("Failed to parse HTML {url}");
+                log::error!("Failed to parse HTML {url}");
                 return vec![];
             }
         };
@@ -243,7 +243,7 @@ impl Crawler for WebstoreCrawlerRusteaco {
 
         let selector = Selector::parse("form.product").unwrap();
         let Some(product_form) = document.select(&selector).next() else {
-            log::warn!("Failed to find form.product {url}");
+            log::error!("Failed to find form.product {url}");
             return vec![];
         };
 
@@ -254,7 +254,7 @@ impl Crawler for WebstoreCrawlerRusteaco {
             let parsed: ProductJson = match serde_json::from_str(&json_str) {
                 Ok(p) => p,
                 Err(e) => {
-                    log::warn!("Failed to parse product JSON {url}: {e}");
+                    log::error!("Failed to parse product JSON {url}: {e}");
                     return vec![];
                 }
             };
