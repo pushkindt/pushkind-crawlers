@@ -18,6 +18,8 @@ tokio = { version = "1.47.1", features = ["full"] }
 url = "2.5.4"
 async-trait = "0.1.83"
 zmq = "0.10.0"
+pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", features = ["dantes"] }
+diesel = { version = "2.2.12", features = ["sqlite", "r2d2", "chrono", "returning_clauses_for_sqlite_3_35"] }
 
 [dev-dependencies]
 tempfile = "3.10.1"

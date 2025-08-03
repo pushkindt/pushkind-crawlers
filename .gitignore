@@ -2,3 +2,4 @@
 .env
 products.json
 test_client.py
+app.db*

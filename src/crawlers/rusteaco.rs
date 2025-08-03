@@ -3,13 +3,13 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use html_escape::decode_html_entities;
+use pushkind_common::domain::product::NewProduct;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 use tokio::sync::Semaphore;
 use url::Url;
 
 use crate::crawlers::Crawler;
-use crate::domain::product::Product;
 
 #[derive(Debug, Deserialize, Clone)]
 struct Variant {
@@ -29,7 +29,8 @@ fn variant_to_product(
     category: &str,
     description: &str,
     url: &str,
-) -> Product {
+    crawler_id: i32,
+) -> NewProduct {
     let (units, amount) = match v.weight {
         Some(weight) => match weight.replace(',', ".").parse() {
             Ok(weight) => ("кг".to_string(), weight),
@@ -38,27 +39,30 @@ fn variant_to_product(
         None => ("шт".to_string(), 1.0),
     };
 
-    Product {
+    NewProduct {
+        crawler_id,
         sku: v.sku,
         name: name.to_string(),
         price: v.price.replace(',', ".").parse().unwrap_or(0.0),
-        category: category.to_string(),
-        units,
-        amount,
-        description: description.to_string(),
+        category: Some(category.to_string()),
+        units: Some(units),
+        amount: Some(amount),
+        description: Some(description.to_string()),
         url: url.to_string(),
     }
 }
 
 pub struct WebstoreCrawlerRusteaco {
+    crawler_id: i32,
     base_url: Url,
     client: reqwest::Client,
     semaphore: Arc<Semaphore>,
 }
 
 impl WebstoreCrawlerRusteaco {
-    pub fn new(concurrency: usize) -> Self {
+    pub fn new(concurrency: usize, crawler_id: i32) -> Self {
         Self {
+            crawler_id,
             base_url: Url::parse("https://shop.rusteaco.ru/").unwrap(),
             client: reqwest::Client::new(),
             semaphore: Arc::new(Semaphore::new(concurrency)),
@@ -173,7 +177,7 @@ impl WebstoreCrawlerRusteaco {
 
 #[async_trait]
 impl Crawler for WebstoreCrawlerRusteaco {
-    async fn get_products(&self) -> Vec<Product> {
+    async fn get_products(&self) -> Vec<NewProduct> {
         let categories = self.get_category_links().await;
 
         let mut tasks = vec![];
@@ -198,13 +202,13 @@ impl Crawler for WebstoreCrawlerRusteaco {
         let products = futures::future::join_all(tasks).await;
 
         // Flatten and ensure uniqueness by product URL in the final result.
-        let mut products: Vec<Product> = products.into_iter().flatten().collect();
+        let mut products: Vec<NewProduct> = products.into_iter().flatten().collect();
         let mut seen_urls = HashSet::new();
         products.retain(|p| seen_urls.insert(p.url.clone()));
         products
     }
 
-    async fn get_product(&self, url: &str) -> Vec<Product> {
+    async fn get_product(&self, url: &str) -> Vec<NewProduct> {
         let document = match self.fetch_html(url).await {
             Some(doc) => doc,
             None => {
@@ -258,7 +262,9 @@ impl Crawler for WebstoreCrawlerRusteaco {
             parsed
                 .variants
                 .into_iter()
-                .map(|v| variant_to_product(v, &name, &category, &description, url))
+                .map(|v| {
+                    variant_to_product(v, &name, &category, &description, url, self.crawler_id)
+                })
                 .collect()
         } else {
             // SKU
@@ -269,14 +275,15 @@ impl Crawler for WebstoreCrawlerRusteaco {
                 .map(|el| el.text().collect::<String>().trim().to_string())
                 .unwrap_or_default();
 
-            vec![Product {
+            vec![NewProduct {
+                crawler_id: self.crawler_id,
                 sku,
                 name,
                 price: 0.0,
-                category,
-                units: "шт".to_string(),
-                amount: 1.0,
-                description,
+                category: Some(category),
+                units: Some("шт".to_string()),
+                amount: Some(1.0),
+                description: Some(description),
                 url: url.to_string(),
             }]
         }
