@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use html_escape::decode_html_entities;
 use scraper::{Html, Selector};
 use serde::Deserialize;
@@ -10,7 +11,7 @@ use url::Url;
 use crate::crawlers::Crawler;
 use crate::domain::product::Product;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 struct Variant {
     sku: String,
     price: String,
@@ -20,6 +21,33 @@ struct Variant {
 #[derive(Debug, Deserialize)]
 struct ProductJson {
     variants: Vec<Variant>,
+}
+
+fn variant_to_product(
+    v: Variant,
+    name: &str,
+    category: &str,
+    description: &str,
+    url: &str,
+) -> Product {
+    let (units, amount) = match v.weight {
+        Some(weight) => match weight.replace(',', ".").parse() {
+            Ok(weight) => ("кг".to_string(), weight),
+            Err(_) => ("шт".to_string(), 1.0),
+        },
+        None => ("шт".to_string(), 1.0),
+    };
+
+    Product {
+        sku: v.sku,
+        name: name.to_string(),
+        price: v.price.replace(',', ".").parse().unwrap_or(0.0),
+        category: category.to_string(),
+        units,
+        amount,
+        description: description.to_string(),
+        url: url.to_string(),
+    }
 }
 
 pub struct WebstoreCrawlerRusteaco {
@@ -143,6 +171,7 @@ impl WebstoreCrawlerRusteaco {
     }
 }
 
+#[async_trait]
 impl Crawler for WebstoreCrawlerRusteaco {
     async fn get_products(&self) -> Vec<Product> {
         let categories = self.get_category_links().await;
@@ -226,31 +255,11 @@ impl Crawler for WebstoreCrawlerRusteaco {
                 }
             };
 
-            let products: Vec<Product> = parsed
+            parsed
                 .variants
                 .into_iter()
-                .map(|v| {
-                    let (units, amount) = match v.weight {
-                        Some(weight) => match weight.replace(',', ".").parse() {
-                            Ok(weight) => ("кг".to_string(), weight),
-                            Err(_) => ("шт".to_string(), 1.0),
-                        },
-                        None => ("шт".to_string(), 1.0),
-                    };
-
-                    Product {
-                        sku: v.sku,
-                        name: name.clone(),
-                        price: v.price.replace(',', ".").parse().unwrap_or(0.0),
-                        category: category.clone(),
-                        units,
-                        amount,
-                        description: description.clone(),
-                        url: url.to_string(),
-                    }
-                })
-                .collect();
-            products
+                .map(|v| variant_to_product(v, &name, &category, &description, url))
+                .collect()
         } else {
             // SKU
             let sku_selector = Selector::parse("span.sku-value").unwrap();
@@ -271,5 +280,41 @@ impl Crawler for WebstoreCrawlerRusteaco {
                 url: url.to_string(),
             }]
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dummy_product_fields() -> (&'static str, &'static str, &'static str, &'static str) {
+        ("Name", "Category", "Description", "http://example.com")
+    }
+
+    #[test]
+    fn converts_weight_to_kg() {
+        let variant = Variant {
+            sku: "S1".into(),
+            price: "10,5".into(),
+            weight: Some("0,5".into()),
+        };
+        let (name, category, description, url) = dummy_product_fields();
+        let product = variant_to_product(variant, name, category, description, url);
+        assert_eq!(product.units, "кг");
+        assert!((product.amount - 0.5).abs() < f32::EPSILON);
+        assert!((product.price - 10.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn defaults_to_pieces_when_weight_missing() {
+        let variant = Variant {
+            sku: "S2".into(),
+            price: "20".into(),
+            weight: None,
+        };
+        let (name, category, description, url) = dummy_product_fields();
+        let product = variant_to_product(variant, name, category, description, url);
+        assert_eq!(product.units, "шт");
+        assert!((product.amount - 1.0).abs() < f32::EPSILON);
     }
 }
