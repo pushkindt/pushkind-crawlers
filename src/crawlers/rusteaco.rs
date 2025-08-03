@@ -177,7 +177,7 @@ impl Crawler for WebstoreCrawlerRusteaco {
         let categories = self.get_category_links().await;
 
         let mut tasks = vec![];
-        for category in categories.iter().take(10) {
+        for category in categories.iter().take(1) {
             tasks.push(async move { self.get_page_links(category).await });
         }
         let page_links = futures::future::join_all(tasks).await;
@@ -271,12 +271,12 @@ impl Crawler for WebstoreCrawlerRusteaco {
 
             vec![Product {
                 sku,
-                name: name,
+                name,
                 price: 0.0,
-                category: category,
+                category,
                 units: "шт".to_string(),
                 amount: 1.0,
-                description: description,
+                description,
                 url: url.to_string(),
             }]
         }
