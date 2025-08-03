@@ -306,9 +306,9 @@ mod tests {
             weight: Some("0,5".into()),
         };
         let (name, category, description, url) = dummy_product_fields();
-        let product = variant_to_product(variant, name, category, description, url);
-        assert_eq!(product.units, "кг");
-        assert!((product.amount - 0.5).abs() < f64::EPSILON);
+        let product = variant_to_product(variant, name, category, description, url, 1);
+        assert_eq!(product.units.as_deref(), Some("кг"));
+        assert!((product.amount.unwrap() - 0.5).abs() < f64::EPSILON);
         assert!((product.price - 10.5).abs() < f64::EPSILON);
     }
 
@@ -320,8 +320,21 @@ mod tests {
             weight: None,
         };
         let (name, category, description, url) = dummy_product_fields();
-        let product = variant_to_product(variant, name, category, description, url);
-        assert_eq!(product.units, "шт");
-        assert!((product.amount - 1.0).abs() < f32::EPSILON);
+        let product = variant_to_product(variant, name, category, description, url, 1);
+        assert_eq!(product.units.as_deref(), Some("шт"));
+        assert!((product.amount.unwrap() - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn defaults_to_pieces_when_weight_invalid() {
+        let variant = Variant {
+            sku: "S3".into(),
+            price: "15".into(),
+            weight: Some("abc".into()),
+        };
+        let (name, category, description, url) = dummy_product_fields();
+        let product = variant_to_product(variant, name, category, description, url, 1);
+        assert_eq!(product.units.as_deref(), Some("шт"));
+        assert!((product.amount.unwrap() - 1.0).abs() < f64::EPSILON);
     }
 }
