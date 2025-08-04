@@ -10,7 +10,7 @@ use crate::repository::ProductWriter;
 use crate::repository::crawler::DieselCrawlerRepository;
 use crate::repository::product::DieselProductRepository;
 
-pub async fn proccess_crawler_message(msg: CrawlerSelector, db_pool: &DbPool) {
+pub async fn process_crawler_message(msg: CrawlerSelector, db_pool: &DbPool) {
     log::info!("Received crawler: {msg:?}");
     let product_repo = DieselProductRepository::new(db_pool);
     let crawler_repo = DieselCrawlerRepository::new(db_pool);

@@ -5,7 +5,7 @@ use pushkind_common::db::establish_connection_pool;
 
 use pushkind_crawlers::processing::ZMQMessage;
 use pushkind_crawlers::processing::benchmark::process_benchmark_message;
-use pushkind_crawlers::processing::crawler::proccess_crawler_message;
+use pushkind_crawlers::processing::crawler::process_crawler_message;
 
 #[tokio::main]
 async fn main() {
@@ -38,7 +38,7 @@ async fn main() {
                 tokio::spawn(async move {
                     match parsed {
                         ZMQMessage::Crawler(crawler) => {
-                            proccess_crawler_message(crawler, &pool_clone).await
+                            process_crawler_message(crawler, &pool_clone).await
                         }
                         ZMQMessage::Benchmark(benchmark) => {
                             process_benchmark_message(benchmark, &pool_clone).await
