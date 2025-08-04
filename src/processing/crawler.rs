@@ -10,6 +10,10 @@ use crate::repository::ProductWriter;
 use crate::repository::crawler::DieselCrawlerRepository;
 use crate::repository::product::DieselProductRepository;
 
+/// Processes a message for a specific crawler and either refreshes all of its
+/// products or updates a subset. When no product URLs are provided, existing
+/// items are cleared and the crawler fetches all products anew. If URLs are
+/// supplied, only those products are retrieved and updated in the repository.
 pub async fn process_crawler_message(msg: CrawlerSelector, db_pool: &DbPool) {
     log::info!("Received crawler: {msg:?}");
     let product_repo = DieselProductRepository::new(db_pool);
