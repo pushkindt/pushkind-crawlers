@@ -1,30 +1,21 @@
 use bytemuck::cast_slice;
 use chrono::Utc;
 use diesel::prelude::*;
-use pushkind_common::db::DbPool;
 use pushkind_common::domain::product::{NewProduct, Product};
 use pushkind_common::models::product::{NewProduct as DbNewProduct, Product as DbProduct};
 use pushkind_common::repository::errors::RepositoryResult;
 
+use crate::repository::DieselRepository;
 use crate::repository::ProductReader;
 use crate::repository::ProductWriter;
 
-pub struct DieselProductRepository<'a> {
-    pub pool: &'a DbPool,
-}
-
-impl<'a> DieselProductRepository<'a> {
-    pub fn new(pool: &'a DbPool) -> Self {
-        Self { pool }
-    }
-}
-
-impl ProductReader for DieselProductRepository<'_> {
-    fn list(&self, hub_id: i32) -> RepositoryResult<Vec<Product>> {
-        use pushkind_common::schema::dantes::{products, crawlers};
+impl ProductReader for DieselRepository<'_> {
+    fn list_products(&self, hub_id: i32) -> RepositoryResult<Vec<Product>> {
+        use pushkind_common::schema::dantes::{crawlers, products};
 
         let mut conn = self.pool.get()?;
 
+        // Join crawler and product tables to scope products to a hub
         let products: Vec<DbProduct> = products::table
             .inner_join(crawlers::table)
             .filter(crawlers::hub_id.eq(hub_id))
@@ -35,12 +26,13 @@ impl ProductReader for DieselProductRepository<'_> {
     }
 }
 
-impl ProductWriter for DieselProductRepository<'_> {
-    fn create(&self, products: &[NewProduct]) -> RepositoryResult<usize> {
+impl ProductWriter for DieselRepository<'_> {
+    fn create_products(&self, products: &[NewProduct]) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::products;
 
         let mut conn = self.pool.get()?;
 
+        // Convert domain objects into their database representation
         let new_products: Vec<DbNewProduct> = products.iter().cloned().map(Into::into).collect();
 
         let inserted = diesel::insert_into(products::table)
@@ -50,7 +42,7 @@ impl ProductWriter for DieselProductRepository<'_> {
         Ok(inserted)
     }
 
-    fn update(&self, products: &[NewProduct]) -> RepositoryResult<usize> {
+    fn update_products(&self, products: &[NewProduct]) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::products;
 
         let mut conn = self.pool.get()?;
@@ -58,6 +50,7 @@ impl ProductWriter for DieselProductRepository<'_> {
         let mut affected_rows = 0;
         for product in products.iter().cloned() {
             let db_product: DbNewProduct = product.into();
+            // Upsert by crawler and url, touching updated_at when a row exists
             let rows = diesel::insert_into(products::table)
                 .values(&db_product)
                 .on_conflict((products::crawler_id, products::url))
@@ -70,7 +63,7 @@ impl ProductWriter for DieselProductRepository<'_> {
         Ok(affected_rows)
     }
 
-    fn set_embedding(&self, product_id: i32, embedding: &[f32]) -> RepositoryResult<usize> {
+    fn set_product_embedding(&self, product_id: i32, embedding: &[f32]) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::products;
 
         let mut conn = self.pool.get()?;
@@ -85,13 +78,13 @@ impl ProductWriter for DieselProductRepository<'_> {
         Ok(affected)
     }
 
-    fn delete(&self, crawler_id: i32) -> RepositoryResult<usize> {
+    fn delete_products(&self, crawler_id: i32) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::{product_benchmark, products};
 
         let mut conn = self.pool.get()?;
 
         let deleted = conn.transaction(|conn| {
-            // collect product ids for the given crawler
+            // Fetch product ids to cascade delete related benchmark associations
             let ids: Vec<i32> = products::table
                 .filter(products::crawler_id.eq(crawler_id))
                 .select(products::id)

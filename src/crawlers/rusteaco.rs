@@ -23,6 +23,7 @@ struct ProductJson {
     variants: Vec<Variant>,
 }
 
+/// Converts a [`Variant`] produced by the store into a [`NewProduct`].
 fn variant_to_product(
     v: Variant,
     name: &str,
@@ -52,6 +53,8 @@ fn variant_to_product(
     }
 }
 
+/// Crawler for `shop.rusteaco.ru` which limits concurrent HTTP requests
+/// using a [`Semaphore`].
 pub struct WebstoreCrawlerRusteaco {
     crawler_id: i32,
     base_url: Url,
@@ -60,6 +63,10 @@ pub struct WebstoreCrawlerRusteaco {
 }
 
 impl WebstoreCrawlerRusteaco {
+    /// Creates a new crawler with the given concurrency limit.
+    ///
+    /// `concurrency` controls how many HTTP requests may be in flight at the
+    /// same time. The `crawler_id` is attached to each produced product.
     pub fn new(concurrency: usize, crawler_id: i32) -> Self {
         Self {
             crawler_id,
@@ -69,10 +76,14 @@ impl WebstoreCrawlerRusteaco {
         }
     }
 
+    /// Fetches a URL and parses it into [`Html`].
+    ///
+    /// A permit from the internal [`Semaphore`] is acquired before issuing
+    /// the request, enforcing the configured concurrency limit.
     async fn fetch_html(&self, url: &str) -> Option<Html> {
         let _permit = self.semaphore.acquire().await.ok()?;
         let res = self.client.get(url).send().await.ok()?;
-        if res.status() != 200 {
+        if !res.status().is_success() {
             log::error!("Failed to get URL {}: {}", url, res.status());
             return None;
         }
@@ -80,6 +91,7 @@ impl WebstoreCrawlerRusteaco {
         Some(Html::parse_document(&text))
     }
 
+    /// Retrieves all category links from the store's landing page.
     async fn get_category_links(&self) -> Vec<String> {
         let document = match self.fetch_html(self.base_url.as_str()).await {
             Some(doc) => doc,
@@ -100,6 +112,8 @@ impl WebstoreCrawlerRusteaco {
             .collect()
     }
 
+    /// For a given category URL, discovers all pagination links, returning
+    /// the original URL and any additional pages.
     async fn get_page_links(&self, url: &str) -> Vec<String> {
         let mut result = vec![url.to_string()];
         let document = match self.fetch_html(url).await {
@@ -128,7 +142,7 @@ impl WebstoreCrawlerRusteaco {
         {
             if let Ok(last_page_number) = last_page_text.parse::<usize>() {
                 if let Ok(base_url) = self.base_url.join(url) {
-                    for i in 1..=last_page_number {
+                    for i in 2..=last_page_number {
                         // Clone the URL and filter out the old `page` parameter
                         let mut page_url = base_url.clone();
                         let mut pairs: Vec<(String, String)> = page_url
@@ -155,6 +169,7 @@ impl WebstoreCrawlerRusteaco {
         result
     }
 
+    /// Extracts product detail links from a listing page.
     async fn get_product_links(&self, url: &str) -> Vec<String> {
         let document = match self.fetch_html(url).await {
             Some(doc) => doc,
@@ -177,11 +192,17 @@ impl WebstoreCrawlerRusteaco {
 
 #[async_trait]
 impl Crawler for WebstoreCrawlerRusteaco {
+    /// Crawls the entire web store and returns all discovered products.
+    ///
+    /// Category pages, pagination, product links and product details are
+    /// fetched concurrently with `join_all`, while [`fetch_html`] ensures the
+    /// number of simultaneous HTTP requests never exceeds the configured
+    /// limit.
     async fn get_products(&self) -> Vec<NewProduct> {
         let categories = self.get_category_links().await;
 
         let mut tasks = vec![];
-        for category in categories.iter().take(1) {
+        for category in categories.iter() {
             tasks.push(async move { self.get_page_links(category).await });
         }
         let page_links = futures::future::join_all(tasks).await;
@@ -208,6 +229,10 @@ impl Crawler for WebstoreCrawlerRusteaco {
         products
     }
 
+    /// Fetches product information from a single product page.
+    ///
+    /// A page may describe multiple variants; each variant is converted into
+    /// its own [`NewProduct`].
     async fn get_product(&self, url: &str) -> Vec<NewProduct> {
         let document = match self.fetch_html(url).await {
             Some(doc) => doc,
