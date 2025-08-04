@@ -33,6 +33,10 @@ pub async fn process_crawler_message(msg: CrawlerSelector, db_pool: &DbPool) {
         return;
     }
 
+    if let Err(e) = crawler_repo.set_processing(crawler.id, true) {
+        log::error!("Failed to set benchmark processing: {e:?}");
+    }
+
     if selector == "rusteaco" {
         let rusteaco = WebstoreCrawlerRusteaco::new(5, crawler.id);
         if urls.is_empty() {

@@ -81,4 +81,16 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
 
         Ok(affected)
     }
+
+    fn set_processing(&self, benchmark_id: i32, processing: bool) -> RepositoryResult<usize> {
+        use pushkind_common::schema::dantes::benchmarks;
+
+        let mut conn = self.pool.get()?;
+
+        let affected = diesel::update(benchmarks::table.filter(benchmarks::id.eq(benchmark_id)))
+            .set(benchmarks::processing.eq(processing))
+            .execute(&mut conn)?;
+
+        Ok(affected)
+    }
 }

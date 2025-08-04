@@ -35,6 +35,16 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
         }
     };
 
+    if benchmark.processing {
+        log::warn!("Benchmark {benchmark_id} is already running");
+        return;
+    }
+
+    if let Err(e) = benchmark_repo.set_processing(benchmark_id, true) {
+        log::error!("Failed to set benchmark processing: {e:?}");
+        return;
+    }
+
     // Initialize embedder for multilingual E5 large
     let mut embedder =
         match TextEmbedding::try_new(InitOptions::new(EmbeddingModel::MultilingualE5Large)) {
@@ -175,6 +185,10 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
             log::error!("Failed to set association: {e:?}");
             return;
         }
+    }
+
+    if let Err(e) = benchmark_repo.set_processing(benchmark_id, false) {
+        log::error!("Failed to set benchmark processing: {e:?}");
     }
 
     log::info!("Finished processing benchmark: {benchmark_id}");

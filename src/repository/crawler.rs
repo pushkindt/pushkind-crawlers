@@ -54,4 +54,16 @@ impl CrawlerWriter for DieselCrawlerRepository<'_> {
 
         Ok(result)
     }
+
+    fn set_processing(&self, crawler_id: i32, processing: bool) -> RepositoryResult<usize> {
+        use pushkind_common::schema::dantes::crawlers;
+
+        let mut conn = self.pool.get()?;
+
+        let affected = diesel::update(crawlers::table.filter(crawlers::id.eq(crawler_id)))
+            .set(crawlers::processing.eq(processing))
+            .execute(&mut conn)?;
+
+        Ok(affected)
+    }
 }

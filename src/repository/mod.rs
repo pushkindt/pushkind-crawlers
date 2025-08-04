@@ -24,6 +24,7 @@ pub trait CrawlerReader {
 
 pub trait CrawlerWriter {
     fn update(&self, crawler_id: i32) -> RepositoryResult<usize>;
+    fn set_processing(&self, crawler_id: i32, processing: bool) -> RepositoryResult<usize>;
 }
 
 pub trait BenchmarkReader {
@@ -39,4 +40,5 @@ pub trait BenchmarkWriter {
         distance: f32,
     ) -> RepositoryResult<usize>;
     fn remove_associations(&self, benchmark_id: i32) -> RepositoryResult<usize>;
+    fn set_processing(&self, benchmark_id: i32, processing: bool) -> RepositoryResult<usize>;
 }
