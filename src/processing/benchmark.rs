@@ -7,6 +7,10 @@ use crate::repository::benchmark::DieselBenchmarkRepository;
 use crate::repository::product::DieselProductRepository;
 use crate::repository::{BenchmarkReader, BenchmarkWriter, ProductReader, ProductWriter};
 
+/// Build a textual prompt describing a benchmark or product for embedding.
+///
+/// The prompt includes the following fields in order: name, SKU, category,
+/// units, price, amount and description.
 fn prompt(
     name: &str,
     sku: &str,
@@ -21,6 +25,14 @@ fn prompt(
     )
 }
 
+/// Generate embeddings for a benchmark and related products, build a search
+/// index and update benchmark-product associations.
+///
+/// The function fetches the benchmark and all products for the same hub,
+/// generates missing embeddings using the multilingual E5 model, persists
+/// them, then builds a cosine index with `usearch` to find the closest
+/// products. Associations in the database are replaced with the top results
+/// and the benchmark processing flag is updated when complete.
 pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
     log::info!("Received benchmark: {benchmark_id:?}");
 
