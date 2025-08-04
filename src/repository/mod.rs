@@ -3,9 +3,9 @@ use pushkind_common::domain::crawler::Crawler;
 use pushkind_common::domain::product::{NewProduct, Product};
 use pushkind_common::repository::errors::RepositoryResult;
 
+pub mod benchmark;
 pub mod crawler;
 pub mod product;
-pub mod benchmark;
 
 pub trait ProductReader {
     fn list(&self, crawler_id: i32) -> RepositoryResult<Vec<Product>>;
@@ -32,6 +32,11 @@ pub trait BenchmarkReader {
 
 pub trait BenchmarkWriter {
     fn set_embedding(&self, benchmark_id: i32, embedding: &[f32]) -> RepositoryResult<usize>;
-    fn set_association(&self, benchmark_id: i32, product_id: i32) -> RepositoryResult<usize>;
+    fn set_association(
+        &self,
+        benchmark_id: i32,
+        product_id: i32,
+        distance: f32,
+    ) -> RepositoryResult<usize>;
     fn remove_associations(&self, benchmark_id: i32) -> RepositoryResult<usize>;
 }

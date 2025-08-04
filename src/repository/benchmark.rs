@@ -1,9 +1,8 @@
 use bytemuck::cast_slice;
-use chrono::Utc;
 use diesel::prelude::*;
 use pushkind_common::db::DbPool;
-use pushkind_common::domain::benchmark::{NewBenchmark, Benchmark};
-use pushkind_common::models::benchmark::{NewBenchmark as DbNewBenchmark, Benchmark as DbBenchmark};
+use pushkind_common::domain::benchmark::Benchmark;
+use pushkind_common::models::benchmark::Benchmark as DbBenchmark;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::BenchmarkReader;
@@ -54,19 +53,30 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
-        let affected = diesel::delete(product_benchmark::table.filter(product_benchmark::benchmark_id.eq(benchmark_id)))
-            .execute(&mut conn)?;
+        let affected = diesel::delete(
+            product_benchmark::table.filter(product_benchmark::benchmark_id.eq(benchmark_id)),
+        )
+        .execute(&mut conn)?;
 
         Ok(affected)
     }
 
-    fn set_association(&self, benchmark_id: i32, product_id: i32) -> RepositoryResult<usize> {
+    fn set_association(
+        &self,
+        benchmark_id: i32,
+        product_id: i32,
+        distance: f32,
+    ) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::product_benchmark;
 
         let mut conn = self.pool.get()?;
 
         let affected = diesel::insert_into(product_benchmark::table)
-            .values((product_benchmark::benchmark_id.eq(benchmark_id), product_benchmark::product_id.eq(product_id)))
+            .values((
+                product_benchmark::benchmark_id.eq(benchmark_id),
+                product_benchmark::product_id.eq(product_id),
+                product_benchmark::distance.eq(distance),
+            ))
             .execute(&mut conn)?;
 
         Ok(affected)
