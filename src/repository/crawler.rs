@@ -6,6 +6,7 @@ use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::{CrawlerReader, CrawlerWriter};
 
+/// Repository for crawler records using Diesel and PostgreSQL.
 pub struct DieselCrawlerRepository<'a> {
     pub pool: &'a DbPool,
 }
@@ -22,6 +23,7 @@ impl CrawlerReader for DieselCrawlerRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
+        // Query the crawler by its unique selector
         let result = crawlers::table
             .filter(crawlers::selector.eq(selector))
             .first::<DbCrawler>(&mut conn)?;
@@ -37,13 +39,13 @@ impl CrawlerWriter for DieselCrawlerRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
-        // Update set updated_at, processing and num_products
+        // Count products for the crawler to update statistics
         let product_count: i64 = products::table
             .filter(products::crawler_id.eq(crawler_id))
             .count()
             .get_result(&mut conn)?;
 
-        // Now do the update with the concrete value
+        // Update timestamp, processing state and product count
         let result = diesel::update(crawlers::table.filter(crawlers::id.eq(crawler_id)))
             .set((
                 crawlers::updated_at.eq(diesel::dsl::now),

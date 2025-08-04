@@ -9,6 +9,7 @@ use pushkind_common::repository::errors::RepositoryResult;
 use crate::repository::ProductReader;
 use crate::repository::ProductWriter;
 
+/// `ProductReader` and `ProductWriter` implementation backed by Diesel.
 pub struct DieselProductRepository<'a> {
     pub pool: &'a DbPool,
 }
@@ -25,6 +26,7 @@ impl ProductReader for DieselProductRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
+        // Join crawler and product tables to scope products to a hub
         let products: Vec<DbProduct> = products::table
             .inner_join(crawlers::table)
             .filter(crawlers::hub_id.eq(hub_id))
@@ -41,6 +43,7 @@ impl ProductWriter for DieselProductRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
+        // Convert domain objects into their database representation
         let new_products: Vec<DbNewProduct> = products.iter().cloned().map(Into::into).collect();
 
         let inserted = diesel::insert_into(products::table)
@@ -58,6 +61,7 @@ impl ProductWriter for DieselProductRepository<'_> {
         let mut affected_rows = 0;
         for product in products.iter().cloned() {
             let db_product: DbNewProduct = product.into();
+            // Upsert by crawler and url, touching updated_at when a row exists
             let rows = diesel::insert_into(products::table)
                 .values(&db_product)
                 .on_conflict((products::crawler_id, products::url))
@@ -91,7 +95,7 @@ impl ProductWriter for DieselProductRepository<'_> {
         let mut conn = self.pool.get()?;
 
         let deleted = conn.transaction(|conn| {
-            // collect product ids for the given crawler
+            // Fetch product ids to cascade delete related benchmark associations
             let ids: Vec<i32> = products::table
                 .filter(products::crawler_id.eq(crawler_id))
                 .select(products::id)

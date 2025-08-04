@@ -8,6 +8,7 @@ use pushkind_common::repository::errors::RepositoryResult;
 use crate::repository::BenchmarkReader;
 use crate::repository::BenchmarkWriter;
 
+/// Diesel-backed repository for benchmark records and associations.
 pub struct DieselBenchmarkRepository<'a> {
     pub pool: &'a DbPool,
 }
@@ -24,6 +25,7 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
+        // Fetch a single benchmark by its primary key
         let benchmark: DbBenchmark = benchmarks::table
             .filter(benchmarks::id.eq(benchmark_id))
             .first(&mut conn)?;
@@ -53,6 +55,7 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
+        // Delete all product links for this benchmark
         let affected = diesel::delete(
             product_benchmark::table.filter(product_benchmark::benchmark_id.eq(benchmark_id)),
         )
@@ -71,6 +74,7 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
 
         let mut conn = self.pool.get()?;
 
+        // Insert association entry with similarity distance
         let affected = diesel::insert_into(product_benchmark::table)
             .values((
                 product_benchmark::benchmark_id.eq(benchmark_id),
