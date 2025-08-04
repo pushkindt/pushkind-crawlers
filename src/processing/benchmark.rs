@@ -205,3 +205,24 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
 
     log::info!("Finished processing benchmark: {benchmark_id}");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prompt_produces_expected_string() {
+        let result = prompt(
+            "Sample Name",
+            "SKU123",
+            "Category",
+            "units",
+            9.99,
+            2.0,
+            "Description",
+        );
+
+        let expected = "Name: Sample Name\nSKU: SKU123\nCategory: Category\nUnits: units\nPrice: 9.99\nAmount: 2\nDescription: Description";
+        assert_eq!(result, expected);
+    }
+}
