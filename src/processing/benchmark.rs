@@ -102,12 +102,12 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
             let emb = match embedder.embed(vec![text], None) {
                 Ok(emb) => emb.into_iter().next().unwrap_or_default(),
                 Err(e) => {
-                    log::error!("Failed to embed benchmark: {e:?}");
+                    log::error!("Failed to embed product: {e:?}");
                     return;
                 }
             };
             if let Err(e) = product_repo.set_embedding(product.id, &emb) {
-                log::error!("Failed to set benchmark embedding: {e:?}");
+                log::error!("Failed to set product embedding: {e:?}");
                 return;
             }
             emb
