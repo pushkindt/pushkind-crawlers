@@ -1,0 +1,76 @@
+name: Deploy development
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pushkind-crawlers
+          path: ./target/release/pushkind-crawlers
+  build-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./crawlers
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: '2.1.3'
+      - name: Setup a local virtual environment (if no poetry.toml file)
+        run: |
+          poetry config virtualenvs.create true --local
+          poetry config virtualenvs.in-project true --local
+      - name: Build Python package
+        run: poetry build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pushkind-crawlers
+          path: crawlers/dist/
+  deploy:
+    needs: [build-rust, build-python]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v4
+        with:
+          name: pushkind-crawlers
+          path: ./target/release/
+      - uses: actions/download-artifact@v4
+        with:
+          name: pushkind-crawlers
+          path: ./dist/
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.CICD_PRIVATE_KEY }}
+          name: id_rsa # optional
+          known_hosts: ${{ secrets.CICD_KNOWN_HOSTS }}
+          if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
+      - name: Deploy
+        run: |
+          ssh cicd@dantes.pushkind.com "supervisorctl stop crawlers"
+          scp ./target/release/pushkind-crawlers cicd@dantes.pushkind.com:/var/www9/html/
+          ssh cicd@dantes.pushkind.com "supervisorctl start crawlers"
