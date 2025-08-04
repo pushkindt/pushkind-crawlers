@@ -58,6 +58,8 @@ pub async fn process_crawler_message(msg: CrawlerSelector, db_pool: &DbPool) {
                 log::error!("Error updating products: {e}");
             }
         }
+    } else {
+        log::error!("Unknown crawler: {selector}");
     }
 
     if let Err(e) = crawler_repo.update(crawler.id) {
