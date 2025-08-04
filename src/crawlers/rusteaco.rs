@@ -128,7 +128,7 @@ impl WebstoreCrawlerRusteaco {
         {
             if let Ok(last_page_number) = last_page_text.parse::<usize>() {
                 if let Ok(base_url) = self.base_url.join(url) {
-                    for i in 1..=last_page_number {
+                    for i in 2..=last_page_number {
                         // Clone the URL and filter out the old `page` parameter
                         let mut page_url = base_url.clone();
                         let mut pairs: Vec<(String, String)> = page_url
@@ -181,7 +181,7 @@ impl Crawler for WebstoreCrawlerRusteaco {
         let categories = self.get_category_links().await;
 
         let mut tasks = vec![];
-        for category in categories.iter().take(1) {
+        for category in categories.iter() {
             tasks.push(async move { self.get_page_links(category).await });
         }
         let page_links = futures::future::join_all(tasks).await;
