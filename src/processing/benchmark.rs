@@ -1,10 +1,7 @@
 use bytemuck::cast_slice;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
-use pushkind_common::db::DbPool;
 use usearch::{Index, IndexOptions, MetricKind, ScalarKind};
 
-use crate::repository::benchmark::DieselBenchmarkRepository;
-use crate::repository::product::DieselProductRepository;
 use crate::repository::{BenchmarkReader, BenchmarkWriter, ProductReader, ProductWriter};
 
 /// Build a textual prompt describing a benchmark or product for embedding.
@@ -33,13 +30,13 @@ fn prompt(
 /// them, then builds a cosine index with `usearch` to find the closest
 /// products. Associations in the database are replaced with the top results
 /// and the benchmark processing flag is updated when complete.
-pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
+pub async fn process_benchmark_message<R>(benchmark_id: i32, repo: R)
+where
+    R: BenchmarkReader + BenchmarkWriter + ProductReader + ProductWriter,
+{
     log::info!("Received benchmark: {benchmark_id:?}");
 
-    let product_repo = DieselProductRepository::new(db_pool);
-    let benchmark_repo = DieselBenchmarkRepository::new(db_pool);
-
-    let benchmark = match benchmark_repo.get(benchmark_id) {
+    let benchmark = match repo.get_benchmark(benchmark_id) {
         Ok(benchmark) => benchmark,
         Err(e) => {
             log::error!("Failed to fetch benchmark: {e:?}");
@@ -52,7 +49,7 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
         return;
     }
 
-    if let Err(e) = benchmark_repo.set_processing(benchmark_id, true) {
+    if let Err(e) = repo.set_benchmark_processing(benchmark_id, true) {
         log::error!("Failed to set benchmark processing: {e:?}");
         return;
     }
@@ -69,7 +66,7 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
 
     // Fetch all products
 
-    let products = match product_repo.list(benchmark.hub_id) {
+    let products = match repo.list_products(benchmark.hub_id) {
         Ok(products) => products,
         Err(e) => {
             log::error!("Failed to fetch products: {e:?}");
@@ -97,7 +94,7 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
                 return;
             }
         };
-        if let Err(e) = benchmark_repo.set_embedding(benchmark.id, &emb) {
+        if let Err(e) = repo.set_benchmark_embedding(benchmark.id, &emb) {
             log::error!("Failed to set benchmark embedding: {e:?}");
             return;
         }
@@ -128,7 +125,7 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
                     return;
                 }
             };
-            if let Err(e) = product_repo.set_embedding(product.id, &emb) {
+            if let Err(e) = repo.set_product_embedding(product.id, &emb) {
                 log::error!("Failed to set product embedding: {e:?}");
                 return;
             }
@@ -182,7 +179,7 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
     };
 
     // Update associations
-    if let Err(e) = benchmark_repo.remove_associations(benchmark_id) {
+    if let Err(e) = repo.remove_benchmark_associations(benchmark_id) {
         log::error!("Failed to clear associations: {e:?}");
         return;
     }
@@ -193,13 +190,13 @@ pub async fn process_benchmark_message(benchmark_id: i32, db_pool: &DbPool) {
             continue;
         }
         let product_id = *key as i32;
-        if let Err(e) = benchmark_repo.set_association(benchmark_id, product_id, *distance) {
+        if let Err(e) = repo.set_benchmark_association(benchmark_id, product_id, *distance) {
             log::error!("Failed to set association: {e:?}");
             return;
         }
     }
 
-    if let Err(e) = benchmark_repo.set_processing(benchmark_id, false) {
+    if let Err(e) = repo.set_benchmark_processing(benchmark_id, false) {
         log::error!("Failed to set benchmark processing: {e:?}");
     }
 

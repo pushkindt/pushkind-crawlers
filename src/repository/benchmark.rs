@@ -1,26 +1,15 @@
 use bytemuck::cast_slice;
 use diesel::prelude::*;
-use pushkind_common::db::DbPool;
 use pushkind_common::domain::benchmark::Benchmark;
 use pushkind_common::models::benchmark::Benchmark as DbBenchmark;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::BenchmarkReader;
 use crate::repository::BenchmarkWriter;
+use crate::repository::DieselRepository;
 
-/// Diesel-backed repository for benchmark records and associations.
-pub struct DieselBenchmarkRepository<'a> {
-    pub pool: &'a DbPool,
-}
-
-impl<'a> DieselBenchmarkRepository<'a> {
-    pub fn new(pool: &'a DbPool) -> Self {
-        Self { pool }
-    }
-}
-
-impl BenchmarkReader for DieselBenchmarkRepository<'_> {
-    fn get(&self, benchmark_id: i32) -> RepositoryResult<Benchmark> {
+impl BenchmarkReader for DieselRepository<'_> {
+    fn get_benchmark(&self, benchmark_id: i32) -> RepositoryResult<Benchmark> {
         use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.pool.get()?;
@@ -34,8 +23,12 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
     }
 }
 
-impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
-    fn set_embedding(&self, benchmark_id: i32, embedding: &[f32]) -> RepositoryResult<usize> {
+impl BenchmarkWriter for DieselRepository<'_> {
+    fn set_benchmark_embedding(
+        &self,
+        benchmark_id: i32,
+        embedding: &[f32],
+    ) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.pool.get()?;
@@ -50,7 +43,7 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
         Ok(affected)
     }
 
-    fn remove_associations(&self, benchmark_id: i32) -> RepositoryResult<usize> {
+    fn remove_benchmark_associations(&self, benchmark_id: i32) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::product_benchmark;
 
         let mut conn = self.pool.get()?;
@@ -64,7 +57,7 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
         Ok(affected)
     }
 
-    fn set_association(
+    fn set_benchmark_association(
         &self,
         benchmark_id: i32,
         product_id: i32,
@@ -86,7 +79,11 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
         Ok(affected)
     }
 
-    fn set_processing(&self, benchmark_id: i32, processing: bool) -> RepositoryResult<usize> {
+    fn set_benchmark_processing(
+        &self,
+        benchmark_id: i32,
+        processing: bool,
+    ) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.pool.get()?;

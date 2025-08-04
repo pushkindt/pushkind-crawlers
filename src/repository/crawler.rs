@@ -1,24 +1,12 @@
 use diesel::prelude::*;
-use pushkind_common::db::DbPool;
 use pushkind_common::domain::crawler::Crawler;
 use pushkind_common::models::crawler::Crawler as DbCrawler;
 use pushkind_common::repository::errors::RepositoryResult;
 
-use crate::repository::{CrawlerReader, CrawlerWriter};
+use crate::repository::{CrawlerReader, CrawlerWriter, DieselRepository};
 
-/// Repository for crawler records using Diesel and PostgreSQL.
-pub struct DieselCrawlerRepository<'a> {
-    pub pool: &'a DbPool,
-}
-
-impl<'a> DieselCrawlerRepository<'a> {
-    pub fn new(pool: &'a DbPool) -> Self {
-        Self { pool }
-    }
-}
-
-impl CrawlerReader for DieselCrawlerRepository<'_> {
-    fn get(&self, selector: &str) -> RepositoryResult<Crawler> {
+impl CrawlerReader for DieselRepository<'_> {
+    fn get_crawler(&self, selector: &str) -> RepositoryResult<Crawler> {
         use pushkind_common::schema::dantes::crawlers;
 
         let mut conn = self.pool.get()?;
@@ -32,8 +20,8 @@ impl CrawlerReader for DieselCrawlerRepository<'_> {
     }
 }
 
-impl CrawlerWriter for DieselCrawlerRepository<'_> {
-    fn update(&self, crawler_id: i32) -> RepositoryResult<usize> {
+impl CrawlerWriter for DieselRepository<'_> {
+    fn update_crawler_stats(&self, crawler_id: i32) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::crawlers;
         use pushkind_common::schema::dantes::products;
 
@@ -57,7 +45,7 @@ impl CrawlerWriter for DieselCrawlerRepository<'_> {
         Ok(result)
     }
 
-    fn set_processing(&self, crawler_id: i32, processing: bool) -> RepositoryResult<usize> {
+    fn set_crawler_processing(&self, crawler_id: i32, processing: bool) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::crawlers;
 
         let mut conn = self.pool.get()?;
