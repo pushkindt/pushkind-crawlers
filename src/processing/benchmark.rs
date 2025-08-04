@@ -22,6 +22,15 @@ fn prompt(
     )
 }
 
+fn normalize(vec: &[f32]) -> Vec<f32> {
+    let norm = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if norm == 0.0 {
+        vec.to_vec() // Clone into a Vec<f32>
+    } else {
+        vec.iter().map(|x| x / norm).collect()
+    }
+}
+
 /// Generate embeddings for a benchmark and related products, build a search
 /// index and update benchmark-product associations.
 ///
@@ -88,7 +97,7 @@ where
         );
 
         let emb = match embedder.embed(vec![text], None) {
-            Ok(emb) => emb.into_iter().next().unwrap_or_default(),
+            Ok(emb) => normalize(&emb.into_iter().next().unwrap_or_default()),
             Err(e) => {
                 log::error!("Failed to embed benchmark: {e:?}");
                 return;
@@ -119,7 +128,7 @@ where
             );
 
             let emb = match embedder.embed(vec![text], None) {
-                Ok(emb) => emb.into_iter().next().unwrap_or_default(),
+                Ok(emb) => normalize(&emb.into_iter().next().unwrap_or_default()),
                 Err(e) => {
                     log::error!("Failed to embed product: {e:?}");
                     return;
@@ -184,13 +193,14 @@ where
         return;
     }
 
-    let threshold = 0.84;
+    let threshold = 0.8;
     for (key, distance) in neighbors.keys.iter().zip(neighbors.distances.iter()) {
-        if *distance < threshold {
+        let distance = 1.0 - *distance;
+        if distance < threshold {
             continue;
         }
         let product_id = *key as i32;
-        if let Err(e) = repo.set_benchmark_association(benchmark_id, product_id, *distance) {
+        if let Err(e) = repo.set_benchmark_association(benchmark_id, product_id, distance) {
             log::error!("Failed to set association: {e:?}");
             return;
         }
