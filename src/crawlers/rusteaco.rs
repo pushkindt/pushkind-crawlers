@@ -72,7 +72,7 @@ impl WebstoreCrawlerRusteaco {
     async fn fetch_html(&self, url: &str) -> Option<Html> {
         let _permit = self.semaphore.acquire().await.ok()?;
         let res = self.client.get(url).send().await.ok()?;
-        if res.status() != 200 {
+        if !res.status().is_success() {
             log::error!("Failed to get URL {}: {}", url, res.status());
             return None;
         }
