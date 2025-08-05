@@ -2389,7 +2389,7 @@ dependencies = [
 [[package]]
 name = "pushkind-common"
 version = "0.1.0"
-source = "git+https://github.com/pushkindt/pushkind-common.git?branch=main#acb6fed31be1310187fd512fd06c8a19a8b4f40a"
+source = "git+https://github.com/pushkindt/pushkind-common.git?branch=main#4879d7dbc10218a4ef9a8cd8c717fa6c46c01a09"
 dependencies = [
  "chrono",
  "diesel",
