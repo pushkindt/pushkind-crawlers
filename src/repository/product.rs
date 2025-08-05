@@ -10,16 +10,13 @@ use crate::repository::ProductReader;
 use crate::repository::ProductWriter;
 
 impl ProductReader for DieselRepository<'_> {
-    fn list_products(&self, hub_id: i32) -> RepositoryResult<Vec<Product>> {
-        use pushkind_common::schema::dantes::{crawlers, products};
+    fn list_products(&self, crawler_id: i32) -> RepositoryResult<Vec<Product>> {
+        use pushkind_common::schema::dantes::products;
 
         let mut conn = self.pool.get()?;
 
-        // Join crawler and product tables to scope products to a hub
         let products: Vec<DbProduct> = products::table
-            .inner_join(crawlers::table)
-            .filter(crawlers::hub_id.eq(hub_id))
-            .select(products::all_columns)
+            .filter(products::crawler_id.eq(crawler_id))
             .load::<DbProduct>(&mut conn)?;
 
         Ok(products.into_iter().map(Into::into).collect())

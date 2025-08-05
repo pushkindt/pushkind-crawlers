@@ -35,37 +35,39 @@ where
         return;
     }
 
+    let web_crawler = match selector.as_str() {
+        "rusteaco" => WebstoreCrawlerRusteaco::new(5, crawler.id),
+        _ => {
+            log::error!("Unknown crawler: {selector}");
+            return;
+        }
+    };
+
     if let Err(e) = repo.set_crawler_processing(crawler.id, true) {
         log::error!("Failed to set benchmark processing: {e:?}");
     }
 
-    if selector == "rusteaco" {
-        let rusteaco = WebstoreCrawlerRusteaco::new(5, crawler.id);
-        if urls.is_empty() {
-            if let Err(e) = repo.delete_products(crawler.id) {
-                log::error!("Error deleting products: {e}");
-                return;
-            }
-            let products = rusteaco.get_products().await;
-            if let Err(e) = repo.create_products(&products) {
-                log::error!("Error creating products: {e}");
-            }
-        } else {
-            let tasks = urls.into_iter().map(|url| {
-                let crawler = &rusteaco;
-                async move { crawler.get_product(&url).await }
-            });
-            let products = future::join_all(tasks)
-                .await
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            if let Err(e) = repo.update_products(&products) {
-                log::error!("Error updating products: {e}");
-            }
+    if urls.is_empty() {
+        if let Err(e) = repo.delete_products(crawler.id) {
+            log::error!("Error deleting products: {e}");
+            return;
+        }
+        let products = web_crawler.get_products().await;
+        if let Err(e) = repo.create_products(&products) {
+            log::error!("Error creating products: {e}");
         }
     } else {
-        log::error!("Unknown crawler: {selector}");
+        let tasks = urls
+            .iter()
+            .map(|url| async { web_crawler.get_product(url).await });
+        let products = future::join_all(tasks)
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        if let Err(e) = repo.update_products(&products) {
+            log::error!("Error updating products: {e}");
+        }
     }
 
     if let Err(e) = repo.update_crawler_stats(crawler.id) {

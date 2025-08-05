@@ -35,6 +35,7 @@ pub trait ProductWriter {
 /// Retrieves a single crawler from the repository.
 pub trait CrawlerReader {
     fn get_crawler(&self, selector: &str) -> RepositoryResult<Crawler>;
+    fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>>;
 }
 
 /// Persists changes to crawler records.
