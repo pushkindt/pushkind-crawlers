@@ -127,6 +127,12 @@ where
         }
     };
 
+    // Remove existing associations
+    if let Err(e) = repo.remove_benchmark_associations(benchmark_id) {
+        log::error!("Failed to clear associations: {e:?}");
+        return;
+    }
+
     for crawler in crawlers {
         log::info!("Processing products for crawler: {}", crawler.name);
         let products = match repo.list_products(crawler.id) {
@@ -169,12 +175,6 @@ where
             };
 
             product_embeddings.push((product.id, embedding));
-        }
-
-        // Update associations
-        if let Err(e) = repo.remove_benchmark_associations(benchmark_id) {
-            log::error!("Failed to clear associations: {e:?}");
-            return;
         }
 
         let top_10_products = match search_top_10(&benchmark_embedding, &product_embeddings) {
