@@ -18,6 +18,18 @@ impl CrawlerReader for DieselRepository<'_> {
 
         Ok(result.into()) // Convert DbCrawler to DomainCrawler
     }
+
+    fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>> {
+        use pushkind_common::schema::dantes::crawlers;
+
+        let mut conn = self.pool.get()?;
+
+        let result = crawlers::table
+            .filter(crawlers::hub_id.eq(hub_id))
+            .load::<DbCrawler>(&mut conn)?;
+
+        Ok(result.into_iter().map(|c| c.into()).collect())
+    }
 }
 
 impl CrawlerWriter for DieselRepository<'_> {

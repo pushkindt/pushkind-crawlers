@@ -203,13 +203,13 @@ impl Crawler for WebstoreCrawlerRusteaco {
 
         let mut tasks = vec![];
         for category in categories.iter() {
-            tasks.push(async move { self.get_page_links(category).await });
+            tasks.push(async { self.get_page_links(category).await });
         }
         let page_links = futures::future::join_all(tasks).await;
 
         let mut tasks = vec![];
         for page_link in page_links.iter().flatten() {
-            tasks.push(async move { self.get_product_links(page_link).await });
+            tasks.push(async { self.get_product_links(page_link).await });
         }
         let product_links = futures::future::join_all(tasks).await;
 
@@ -217,8 +217,8 @@ impl Crawler for WebstoreCrawlerRusteaco {
         let unique_links: HashSet<String> = product_links.into_iter().flatten().collect();
 
         let mut tasks = vec![];
-        for link in unique_links {
-            tasks.push(async move { self.get_product(&link).await });
+        for link in &unique_links {
+            tasks.push(async { self.get_product(link).await });
         }
         let products = futures::future::join_all(tasks).await;
 
