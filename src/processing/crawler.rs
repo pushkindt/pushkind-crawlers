@@ -1,8 +1,9 @@
 use futures::future;
 use pushkind_common::models::zmq::dantes::CrawlerSelector;
 
-use crate::crawlers::Crawler;
+use crate::crawlers::WebstoreCrawler;
 use crate::crawlers::rusteaco::WebstoreCrawlerRusteaco;
+use crate::crawlers::tea101::WebstoreCrawler101Tea;
 use crate::repository::CrawlerReader;
 use crate::repository::CrawlerWriter;
 use crate::repository::ProductWriter;
@@ -35,8 +36,9 @@ where
         return;
     }
 
-    let web_crawler = match selector.as_str() {
-        "rusteaco" => WebstoreCrawlerRusteaco::new(5, crawler.id),
+    let web_crawler: Box<dyn WebstoreCrawler + Send + Sync> = match selector.as_str() {
+        "rusteaco" => Box::new(WebstoreCrawlerRusteaco::new(5, crawler.id)),
+        "101tea" => Box::new(WebstoreCrawler101Tea::new(5, crawler.id)),
         _ => {
             log::error!("Unknown crawler: {selector}");
             return;
