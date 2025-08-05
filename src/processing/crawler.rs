@@ -1,8 +1,8 @@
 use futures::future;
+use pushkind_common::models::zmq::dantes::CrawlerSelector;
 
 use crate::crawlers::Crawler;
 use crate::crawlers::rusteaco::WebstoreCrawlerRusteaco;
-use crate::processing::CrawlerSelector;
 use crate::repository::CrawlerReader;
 use crate::repository::CrawlerWriter;
 use crate::repository::ProductWriter;

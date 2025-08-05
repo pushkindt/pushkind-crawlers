@@ -2,8 +2,8 @@ use std::env;
 use std::sync::Arc;
 
 use pushkind_common::db::establish_connection_pool;
+use pushkind_common::models::zmq::dantes::ZMQMessage;
 
-use pushkind_crawlers::processing::ZMQMessage;
 use pushkind_crawlers::processing::benchmark::process_benchmark_message;
 use pushkind_crawlers::processing::crawler::process_crawler_message;
 use pushkind_crawlers::repository::DieselRepository;
