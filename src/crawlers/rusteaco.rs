@@ -9,7 +9,7 @@ use serde::Deserialize;
 use tokio::sync::Semaphore;
 use url::Url;
 
-use crate::crawlers::Crawler;
+use crate::crawlers::WebstoreCrawler;
 
 #[derive(Debug, Deserialize, Clone)]
 struct Variant {
@@ -191,7 +191,7 @@ impl WebstoreCrawlerRusteaco {
 }
 
 #[async_trait]
-impl Crawler for WebstoreCrawlerRusteaco {
+impl WebstoreCrawler for WebstoreCrawlerRusteaco {
     /// Crawls the entire web store and returns all discovered products.
     ///
     /// Category pages, pagination, product links and product details are

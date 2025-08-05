@@ -6,7 +6,7 @@ pub mod tea101;
 
 /// An abstraction over web store crawlers that produce [`NewProduct`]s.
 #[async_trait]
-pub trait Crawler {
+pub trait WebstoreCrawler: Send + Sync {
     /// Crawls the target site and returns every product discovered.
     async fn get_products(&self) -> Vec<NewProduct>;
 
