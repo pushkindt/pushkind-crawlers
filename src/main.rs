@@ -8,6 +8,7 @@ use pushkind_crawlers::processing::benchmark::process_benchmark_message;
 use pushkind_crawlers::processing::crawler::process_crawler_message;
 use pushkind_crawlers::repository::DieselRepository;
 
+/// Entry point for the crawler service.
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();

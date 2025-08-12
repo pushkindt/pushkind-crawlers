@@ -27,6 +27,9 @@ fn prompt(
     )
 }
 
+/// Normalize a vector to unit length.
+///
+/// Returns the original vector when the norm is zero.
 fn normalize(vec: &[f32]) -> Vec<f32> {
     let norm = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
     if norm == 0.0 {
@@ -76,7 +79,7 @@ where
 
     log::info!("Finished processing benchmark: {benchmark_id}");
 }
-
+/// Core logic for processing a benchmark and updating associations.
 fn process_benchmark<R>(benchmark: Benchmark, repo: &R)
 where
     R: BenchmarkReader + BenchmarkWriter + ProductReader + ProductWriter + CrawlerReader,
@@ -199,7 +202,7 @@ where
         }
     }
 }
-
+/// Search the top 10 closest products to the given benchmark embedding.
 fn search_top_10<'a, T>(
     benchmark_embedding: &[f32],
     products: &'a [(i32, T)],
