@@ -8,12 +8,14 @@ pub mod benchmark;
 pub mod crawler;
 pub mod product;
 
-// Diesel-backed repository
+/// Diesel-backed repository implementation using a connection pool.
 pub struct DieselRepository<'a> {
+    /// Shared database pool used to obtain connections.
     pub pool: &'a DbPool,
 }
 
 impl<'a> DieselRepository<'a> {
+    /// Construct a new repository backed by the provided pool.
     pub fn new(pool: &'a DbPool) -> Self {
         Self { pool }
     }

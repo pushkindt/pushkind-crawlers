@@ -46,7 +46,7 @@ where
     };
 
     if let Err(e) = repo.set_crawler_processing(crawler.id, true) {
-        log::error!("Failed to set benchmark processing: {e:?}");
+        log::error!("Failed to set crawler processing: {e:?}");
     }
 
     if urls.is_empty() {
