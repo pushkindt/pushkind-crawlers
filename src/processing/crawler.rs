@@ -2,6 +2,7 @@ use futures::future;
 use pushkind_common::models::zmq::dantes::CrawlerSelector;
 
 use crate::crawlers::WebstoreCrawler;
+use crate::crawlers::gutenberg::WebstoreCrawlerGutenberg;
 use crate::crawlers::rusteaco::WebstoreCrawlerRusteaco;
 use crate::crawlers::tea101::WebstoreCrawler101Tea;
 use crate::repository::CrawlerReader;
@@ -39,6 +40,7 @@ where
     let web_crawler: Box<dyn WebstoreCrawler + Send + Sync> = match selector.as_str() {
         "rusteaco" => Box::new(WebstoreCrawlerRusteaco::new(5, crawler.id)),
         "101tea" => Box::new(WebstoreCrawler101Tea::new(5, crawler.id)),
+        "gutenberg" => Box::new(WebstoreCrawlerGutenberg::new(5, crawler.id)),
         _ => {
             log::error!("Unknown crawler: {selector}");
             return;

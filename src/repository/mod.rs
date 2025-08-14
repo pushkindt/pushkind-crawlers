@@ -1,4 +1,4 @@
-use pushkind_common::db::DbPool;
+use pushkind_common::db::{DbConnection, DbPool};
 use pushkind_common::domain::benchmark::Benchmark;
 use pushkind_common::domain::crawler::Crawler;
 use pushkind_common::domain::product::{NewProduct, Product};
@@ -9,15 +9,19 @@ pub mod crawler;
 pub mod product;
 
 /// Diesel-backed repository implementation using a connection pool.
-pub struct DieselRepository<'a> {
+pub struct DieselRepository {
     /// Shared database pool used to obtain connections.
-    pub pool: &'a DbPool,
+    pool: DbPool,
 }
 
-impl<'a> DieselRepository<'a> {
+impl DieselRepository {
     /// Construct a new repository backed by the provided pool.
-    pub fn new(pool: &'a DbPool) -> Self {
+    pub fn new(pool: DbPool) -> Self {
         Self { pool }
+    }
+
+    pub fn conn(&self) -> RepositoryResult<DbConnection> {
+        Ok(self.pool.get()?)
     }
 }
 

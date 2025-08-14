@@ -9,11 +9,11 @@ use crate::repository::DieselRepository;
 use crate::repository::ProductReader;
 use crate::repository::ProductWriter;
 
-impl ProductReader for DieselRepository<'_> {
+impl ProductReader for DieselRepository {
     fn list_products(&self, crawler_id: i32) -> RepositoryResult<Vec<Product>> {
         use pushkind_common::schema::dantes::products;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let products: Vec<DbProduct> = products::table
             .filter(products::crawler_id.eq(crawler_id))
@@ -23,11 +23,11 @@ impl ProductReader for DieselRepository<'_> {
     }
 }
 
-impl ProductWriter for DieselRepository<'_> {
+impl ProductWriter for DieselRepository {
     fn create_products(&self, products: &[NewProduct]) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::products;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         // Convert domain objects into their database representation
         let new_products: Vec<DbNewProduct> = products.iter().cloned().map(Into::into).collect();
@@ -42,7 +42,7 @@ impl ProductWriter for DieselRepository<'_> {
     fn update_products(&self, products: &[NewProduct]) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::products;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let mut affected_rows = 0;
         for product in products.iter().cloned() {
@@ -63,7 +63,7 @@ impl ProductWriter for DieselRepository<'_> {
     fn set_product_embedding(&self, product_id: i32, embedding: &[f32]) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::products;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         // Convert &[f32] to &[u8]
         let blob: Vec<u8> = cast_slice(embedding).to_vec();
@@ -78,7 +78,7 @@ impl ProductWriter for DieselRepository<'_> {
     fn delete_products(&self, crawler_id: i32) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::{product_benchmark, products};
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let deleted = conn.transaction(|conn| {
             // Fetch product ids to cascade delete related benchmark associations
