@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use pushkind_common::domain::product::NewProduct;
 
+pub mod gutenberg;
 pub mod rusteaco;
 pub mod tea101;
 

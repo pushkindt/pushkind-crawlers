@@ -8,11 +8,11 @@ use crate::repository::BenchmarkReader;
 use crate::repository::BenchmarkWriter;
 use crate::repository::DieselRepository;
 
-impl BenchmarkReader for DieselRepository<'_> {
+impl BenchmarkReader for DieselRepository {
     fn get_benchmark(&self, benchmark_id: i32) -> RepositoryResult<Benchmark> {
         use pushkind_common::schema::dantes::benchmarks;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         // Fetch a single benchmark by its primary key
         let benchmark: DbBenchmark = benchmarks::table
@@ -23,7 +23,7 @@ impl BenchmarkReader for DieselRepository<'_> {
     }
 }
 
-impl BenchmarkWriter for DieselRepository<'_> {
+impl BenchmarkWriter for DieselRepository {
     fn set_benchmark_embedding(
         &self,
         benchmark_id: i32,
@@ -31,7 +31,7 @@ impl BenchmarkWriter for DieselRepository<'_> {
     ) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::benchmarks;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         // Convert &[f32] to &[u8]
         let blob: Vec<u8> = cast_slice(embedding).to_vec();
@@ -46,7 +46,7 @@ impl BenchmarkWriter for DieselRepository<'_> {
     fn remove_benchmark_associations(&self, benchmark_id: i32) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::product_benchmark;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         // Delete all product links for this benchmark
         let affected = diesel::delete(
@@ -65,7 +65,7 @@ impl BenchmarkWriter for DieselRepository<'_> {
     ) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::product_benchmark;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         // Insert association entry with similarity distance
         let affected = diesel::insert_into(product_benchmark::table)
@@ -86,7 +86,7 @@ impl BenchmarkWriter for DieselRepository<'_> {
     ) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::benchmarks;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let affected = diesel::update(benchmarks::table.filter(benchmarks::id.eq(benchmark_id)))
             .set(benchmarks::processing.eq(processing))

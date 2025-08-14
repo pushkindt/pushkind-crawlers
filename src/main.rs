@@ -1,5 +1,4 @@
 use std::env;
-use std::sync::Arc;
 
 use pushkind_common::db::establish_connection_pool;
 use pushkind_common::models::zmq::dantes::ZMQMessage;
@@ -22,7 +21,6 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    let pool = Arc::new(pool);
 
     let zmq_address =
         env::var("ZMQ_ADDRESS").unwrap_or_else(|_| "tcp://127.0.0.1:5555".to_string());
@@ -36,9 +34,9 @@ async fn main() {
         let msg = responder.recv_bytes(0).unwrap();
         match serde_json::from_slice::<ZMQMessage>(&msg) {
             Ok(parsed) => {
-                let pool_clone = Arc::clone(&pool);
+                let pool_clone = pool.clone();
                 tokio::spawn(async move {
-                    let repo = DieselRepository::new(&pool_clone);
+                    let repo = DieselRepository::new(pool_clone);
                     match parsed {
                         ZMQMessage::Crawler(crawler) => {
                             process_crawler_message(crawler, repo).await
