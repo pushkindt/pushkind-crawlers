@@ -94,4 +94,28 @@ impl BenchmarkWriter for DieselRepository {
 
         Ok(affected)
     }
+
+    fn update_benchmark_stats(&self, benchmark_id: i32) -> RepositoryResult<usize> {
+        use pushkind_common::schema::dantes::benchmarks;
+        use pushkind_common::schema::dantes::product_benchmark;
+
+        let mut conn = self.conn()?;
+
+        // Count products for the benchmark to update statistics
+        let product_count: i64 = product_benchmark::table
+            .filter(product_benchmark::benchmark_id.eq(benchmark_id))
+            .count()
+            .get_result(&mut conn)?;
+
+        // Update timestamp, processing state and product count
+        let result = diesel::update(benchmarks::table.filter(benchmarks::id.eq(benchmark_id)))
+            .set((
+                benchmarks::updated_at.eq(diesel::dsl::now),
+                benchmarks::processing.eq(false),
+                benchmarks::num_products.eq(product_count as i32), // cast if needed
+            ))
+            .execute(&mut conn)?;
+
+        Ok(result)
+    }
 }
