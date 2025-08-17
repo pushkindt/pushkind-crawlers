@@ -74,4 +74,5 @@ pub trait BenchmarkWriter {
         benchmark_id: i32,
         processing: bool,
     ) -> RepositoryResult<usize>;
+    fn update_benchmark_stats(&self, benchmark_id: i32) -> RepositoryResult<usize>;
 }

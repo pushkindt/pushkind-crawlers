@@ -73,8 +73,8 @@ where
 
     process_benchmark(benchmark, &repo);
 
-    if let Err(e) = repo.set_benchmark_processing(benchmark_id, false) {
-        log::error!("Failed to set benchmark processing: {e:?}");
+    if let Err(e) = repo.update_benchmark_stats(benchmark_id) {
+        log::error!("Failed to update benchmark stats: {e:?}");
     }
 
     log::info!("Finished processing benchmark: {benchmark_id}");
