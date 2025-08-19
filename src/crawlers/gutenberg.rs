@@ -8,6 +8,7 @@ use tokio::sync::Semaphore;
 use url::Url;
 
 use crate::crawlers::WebstoreCrawler;
+use crate::crawlers::parse_amount_units;
 
 /// Crawler for `gutenberg.ru` which limits concurrent HTTP requests
 /// using a [`Semaphore`].
@@ -16,29 +17,6 @@ pub struct WebstoreCrawlerGutenberg {
     base_url: Url,
     client: reqwest::Client,
     semaphore: Arc<Semaphore>,
-}
-
-fn parse_amount_units(input: &str) -> (f64, String) {
-    // Default values
-    let default_amount = 1.0;
-    let default_units = "шт".to_string();
-
-    // Remove optional "/" and leading spaces
-    let trimmed = input.trim_start_matches('/').trim_start();
-
-    // Split into at most two parts: amount and units
-    let mut parts = trimmed.splitn(2, char::is_whitespace);
-
-    let amount_str = parts.next().unwrap_or("").replace(',', ".");
-    let amount = amount_str.parse::<f64>().unwrap_or(default_amount);
-
-    let units = parts
-        .next()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or(default_units);
-
-    (amount, units)
 }
 
 impl WebstoreCrawlerGutenberg {

@@ -10,12 +10,13 @@ use tokio::sync::Semaphore;
 use url::Url;
 
 use crate::crawlers::WebstoreCrawler;
+use crate::crawlers::parse_amount_units;
 
 #[derive(Debug, Deserialize, Clone)]
 struct Variant {
     sku: String,
     price: String,
-    weight: Option<String>,
+    title: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -32,24 +33,18 @@ fn variant_to_product(
     url: &str,
     crawler_id: i32,
 ) -> NewProduct {
-    let (units, amount) = match v.weight {
-        Some(weight) => match weight.replace(',', ".").parse() {
-            Ok(weight) => ("кг".to_string(), weight),
-            Err(_) => ("шт".to_string(), 1.0),
-        },
-        None => ("шт".to_string(), 1.0),
-    };
+    let (amount, units) = parse_amount_units(&v.title);
 
     NewProduct {
         crawler_id,
-        sku: v.sku,
+        sku: v.sku.clone(),
         name: name.to_string(),
         price: v.price.replace(',', ".").parse().unwrap_or(0.0),
         category: Some(category.to_string()),
         units: Some(units),
         amount: Some(amount),
         description: Some(description.to_string()),
-        url: url.to_string(),
+        url: format!("{url}#{}", v.sku),
     }
 }
 
@@ -300,14 +295,35 @@ impl WebstoreCrawler for WebstoreCrawlerRusteaco {
                 .map(|el| el.text().collect::<String>().trim().to_string())
                 .unwrap_or_default();
 
+            // Amount and units are a string like "150 г"
+            let amount_units_selector = Selector::parse("button.option-value").unwrap();
+            let amount_units = document
+                .select(&amount_units_selector)
+                .next()
+                .map(|el| el.text().collect::<String>().trim().to_string())
+                .unwrap_or_default();
+            let (amount, units) = parse_amount_units(&amount_units);
+
+            // Price
+            let price_selector = Selector::parse("span.product__price-cur").unwrap();
+            let price = document
+                .select(&price_selector)
+                .next()
+                .map(|el| el.text().collect::<String>().trim().to_string())
+                .unwrap_or_default();
+
             vec![NewProduct {
                 crawler_id: self.crawler_id,
                 sku,
                 name,
-                price: 0.0,
+                price: price
+                    .replace(',', ".")
+                    .replace(" ", "")
+                    .parse()
+                    .unwrap_or(0.0),
                 category: Some(category),
-                units: Some("шт".to_string()),
-                amount: Some(1.0),
+                units: Some(units),
+                amount: Some(amount),
                 description: Some(description),
                 url: url.to_string(),
             }]
@@ -328,7 +344,7 @@ mod tests {
         let variant = Variant {
             sku: "S1".into(),
             price: "10,5".into(),
-            weight: Some("0,5".into()),
+            title: "0.5 кг".into(),
         };
         let (name, category, description, url) = dummy_product_fields();
         let product = variant_to_product(variant, name, category, description, url, 1);
@@ -342,7 +358,7 @@ mod tests {
         let variant = Variant {
             sku: "S2".into(),
             price: "20".into(),
-            weight: None,
+            title: "".into(),
         };
         let (name, category, description, url) = dummy_product_fields();
         let product = variant_to_product(variant, name, category, description, url, 1);
@@ -355,7 +371,7 @@ mod tests {
         let variant = Variant {
             sku: "S3".into(),
             price: "15".into(),
-            weight: Some("abc".into()),
+            title: "abc".into(),
         };
         let (name, category, description, url) = dummy_product_fields();
         let product = variant_to_product(variant, name, category, description, url, 1);
