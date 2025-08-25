@@ -1,7 +1,7 @@
 use std::env;
 
 use pushkind_common::db::establish_connection_pool;
-use pushkind_common::models::zmq::dantes::ZMQMessage;
+use pushkind_common::models::zmq::dantes::ZMQCrawlerMessage;
 
 use pushkind_crawlers::processing::benchmark::process_benchmark_message;
 use pushkind_crawlers::processing::crawler::process_crawler_message;
@@ -23,7 +23,7 @@ async fn main() {
     };
 
     let zmq_address =
-        env::var("ZMQ_ADDRESS").unwrap_or_else(|_| "tcp://127.0.0.1:5555".to_string());
+        env::var("ZMQ_CRAWLER").unwrap_or_else(|_| "tcp://127.0.0.1:5555".to_string());
     let context = zmq::Context::new();
     let responder = context.socket(zmq::PULL).expect("Cannot create zmq socket");
     responder
@@ -32,16 +32,16 @@ async fn main() {
 
     loop {
         let msg = responder.recv_bytes(0).unwrap();
-        match serde_json::from_slice::<ZMQMessage>(&msg) {
+        match serde_json::from_slice::<ZMQCrawlerMessage>(&msg) {
             Ok(parsed) => {
                 let pool_clone = pool.clone();
                 tokio::spawn(async move {
                     let repo = DieselRepository::new(pool_clone);
                     match parsed {
-                        ZMQMessage::Crawler(crawler) => {
+                        ZMQCrawlerMessage::Crawler(crawler) => {
                             process_crawler_message(crawler, repo).await
                         }
-                        ZMQMessage::Benchmark(benchmark) => {
+                        ZMQCrawlerMessage::Benchmark(benchmark) => {
                             process_benchmark_message(benchmark, repo).await
                         }
                     }
