@@ -9,21 +9,28 @@ env_logger = "0.11.8"
 futures = "0.3.31"
 html-escape = "0.2.13"
 log = "0.4.27"
-reqwest = "0.12.22"
-scraper = "0.23.1"
+reqwest = "0.12.23"
+scraper = "0.24.0"
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.142"
-thiserror = "2.0.12"
+serde_json = "1.0.143"
+thiserror = "2.0.16"
 tokio = { version = "1.47.1", features = ["full"] }
-url = "2.5.4"
-async-trait = "0.1.83"
+url = "2.5.7"
+async-trait = "0.1.89"
 zmq = "0.10.0"
-pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", features = ["dantes"] }
-diesel = { version = "2.2.12", features = ["sqlite", "r2d2", "chrono", "returning_clauses_for_sqlite_3_35"] }
+pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", features = [
+    "dantes",
+] }
+diesel = { version = "2.2.12", features = [
+    "sqlite",
+    "r2d2",
+    "chrono",
+    "returning_clauses_for_sqlite_3_35",
+] }
 chrono = { version = "0.4.41", features = ["serde"] }
-fastembed = "5.0.0"
-bytemuck = "1.23.1"
-usearch = "2.19.1"
+fastembed = "5.1.0"
+bytemuck = "1.23.2"
+usearch = "2.20.4"
 
 [dev-dependencies]
-tempfile = "3.10.1"
+tempfile = "3.21.0"
