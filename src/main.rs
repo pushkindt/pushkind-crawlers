@@ -1,7 +1,7 @@
 use std::env;
 
 use pushkind_common::db::establish_connection_pool;
-use pushkind_common::models::zmq::dantes::ZMQCrawlerMessage;
+use pushkind_common::models::dantes::zmq::ZMQCrawlerMessage;
 
 use pushkind_crawlers::processing::benchmark::process_benchmark_message;
 use pushkind_crawlers::processing::crawler::process_crawler_message;

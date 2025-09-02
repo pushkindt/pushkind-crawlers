@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use html_escape::decode_html_entities;
-use pushkind_common::domain::product::NewProduct;
+use pushkind_common::domain::dantes::product::NewProduct;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 use tokio::sync::Semaphore;

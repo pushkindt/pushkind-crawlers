@@ -1,7 +1,7 @@
 use bytemuck::cast_slice;
 use diesel::prelude::*;
-use pushkind_common::domain::benchmark::Benchmark;
-use pushkind_common::models::benchmark::Benchmark as DbBenchmark;
+use pushkind_common::domain::dantes::benchmark::Benchmark;
+use pushkind_common::models::dantes::benchmark::Benchmark as DbBenchmark;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::BenchmarkReader;

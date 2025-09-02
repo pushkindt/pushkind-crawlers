@@ -2,7 +2,7 @@ use std::error::Error;
 
 use bytemuck::cast_slice;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
-use pushkind_common::domain::benchmark::Benchmark;
+use pushkind_common::domain::dantes::benchmark::Benchmark;
 use usearch::{Index, IndexOptions, MetricKind, ScalarKind};
 
 use crate::repository::{
