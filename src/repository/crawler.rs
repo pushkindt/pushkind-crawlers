@@ -1,6 +1,6 @@
 use diesel::prelude::*;
-use pushkind_common::domain::crawler::Crawler;
-use pushkind_common::models::crawler::Crawler as DbCrawler;
+use pushkind_common::domain::dantes::crawler::Crawler;
+use pushkind_common::models::dantes::crawler::Crawler as DbCrawler;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::{CrawlerReader, CrawlerWriter, DieselRepository};

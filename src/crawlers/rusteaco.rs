@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use html_escape::decode_html_entities;
-use pushkind_common::domain::product::NewProduct;
+use pushkind_common::domain::dantes::product::NewProduct;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 use tokio::sync::Semaphore;
@@ -134,9 +134,8 @@ impl WebstoreCrawlerRusteaco {
         if let Some(last_page_text) = page_links
             .last()
             .map(|e| e.text().collect::<String>().trim().to_string())
-        {
-            if let Ok(last_page_number) = last_page_text.parse::<usize>() {
-                if let Ok(base_url) = self.base_url.join(url) {
+            && let Ok(last_page_number) = last_page_text.parse::<usize>()
+                && let Ok(base_url) = self.base_url.join(url) {
                     for i in 2..=last_page_number {
                         // Clone the URL and filter out the old `page` parameter
                         let mut page_url = base_url.clone();
@@ -158,8 +157,6 @@ impl WebstoreCrawlerRusteaco {
                         result.push(page_url.to_string());
                     }
                 }
-            }
-        }
 
         result
     }

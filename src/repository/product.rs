@@ -1,8 +1,8 @@
 use bytemuck::cast_slice;
 use chrono::Utc;
 use diesel::prelude::*;
-use pushkind_common::domain::product::{NewProduct, Product};
-use pushkind_common::models::product::{NewProduct as DbNewProduct, Product as DbProduct};
+use pushkind_common::domain::dantes::product::{NewProduct, Product};
+use pushkind_common::models::dantes::product::{NewProduct as DbNewProduct, Product as DbProduct};
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::DieselRepository;
