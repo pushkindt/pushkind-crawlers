@@ -9,12 +9,13 @@ pub struct TestDb {
 }
 
 impl TestDb {
+    #[allow(dead_code)]
     pub fn new(filename: &str) -> Self {
         std::fs::remove_file(filename).ok(); // Clean up old DB
 
         let pool =
             establish_connection_pool(filename).expect("Failed to establish SQLite connection.");
-        let mut conn = pool
+        let _conn = pool
             .get()
             .expect("Failed to get SQLite connection from pool.");
         TestDb {
@@ -22,6 +23,7 @@ impl TestDb {
             pool,
         }
     }
+    #[allow(dead_code)]
     pub fn pool(&self) -> DbPool {
         self.pool.clone()
     }
