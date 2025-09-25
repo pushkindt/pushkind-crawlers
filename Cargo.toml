@@ -8,11 +8,11 @@ dotenvy = "0.15.7"
 env_logger = "0.11.8"
 futures = "0.3.31"
 html-escape = "0.2.13"
-log = "0.4.27"
+log = "0.4.28"
 reqwest = "0.12.23"
 scraper = "0.24.0"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.143"
+serde = { version = "1.0.226", features = ["derive"] }
+serde_json = "1.0.145"
 thiserror = "2.0.16"
 tokio = { version = "1.47.1", features = ["full"] }
 url = "2.5.7"
@@ -21,16 +21,16 @@ zmq = "0.10.0"
 pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", features = [
     "dantes",
 ] }
-diesel = { version = "2.2.12", features = [
+diesel = { version = "2.3.2", features = [
     "sqlite",
     "r2d2",
     "chrono",
     "returning_clauses_for_sqlite_3_35",
 ] }
-chrono = { version = "0.4.41", features = ["serde"] }
-fastembed = "5.1.0"
+chrono = { version = "0.4.42", features = ["serde"] }
+fastembed = "5.2.0"
 bytemuck = "1.23.2"
-usearch = "2.20.4"
+usearch = "2.21.0"
 
 [dev-dependencies]
-tempfile = "3.21.0"
+tempfile = "3.23.0"

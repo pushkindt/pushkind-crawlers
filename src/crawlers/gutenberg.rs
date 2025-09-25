@@ -97,28 +97,29 @@ impl WebstoreCrawlerGutenberg {
             .last()
             .map(|e| e.text().collect::<String>().trim().to_string())
             && let Ok(last_page_number) = last_page_text.parse::<usize>()
-                && let Ok(base_url) = self.base_url.join(url) {
-                    for i in 2..=last_page_number {
-                        // Clone the URL and filter out the old `page` parameter
-                        let mut page_url = base_url.clone();
-                        let mut pairs: Vec<(String, String)> = page_url
-                            .query_pairs()
-                            .filter(|(k, _)| k != "page")
-                            .map(|(k, v)| (k.to_string(), v.to_string()))
-                            .collect();
+            && let Ok(base_url) = self.base_url.join(url)
+        {
+            for i in 2..=last_page_number {
+                // Clone the URL and filter out the old `page` parameter
+                let mut page_url = base_url.clone();
+                let mut pairs: Vec<(String, String)> = page_url
+                    .query_pairs()
+                    .filter(|(k, _)| k != "page")
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect();
 
-                        // Insert the new page value
-                        pairs.push(("page".to_string(), i.to_string()));
+                // Insert the new page value
+                pairs.push(("page".to_string(), i.to_string()));
 
-                        // Clear existing query and re-apply
-                        page_url.set_query(None);
-                        page_url
-                            .query_pairs_mut()
-                            .extend_pairs(pairs.iter().map(|(k, v)| (&**k, &**v)));
+                // Clear existing query and re-apply
+                page_url.set_query(None);
+                page_url
+                    .query_pairs_mut()
+                    .extend_pairs(pairs.iter().map(|(k, v)| (&**k, &**v)));
 
-                        result.push(page_url.to_string());
-                    }
-                }
+                result.push(page_url.to_string());
+            }
+        }
 
         result
     }
