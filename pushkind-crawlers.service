@@ -1,0 +1,38 @@
+[Unit]
+Description=pushkind-crawlers (worker)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=www-data9
+Group=www-data
+
+WorkingDirectory=/var/www9/html
+ExecStart=/var/www9/html/pushkind-crawlers
+
+Restart=on-failure
+RestartSec=2
+
+# Equivalent to stopasgroup/killasgroup
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+# Logging (journald by default)
+# StandardOutput=append:/var/log/pushkind/crawlers.log
+# StandardError=inherit
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www9/html
+AmbientCapabilities=
+CapabilityBoundingSet=
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+
