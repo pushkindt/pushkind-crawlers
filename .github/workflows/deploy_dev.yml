@@ -41,6 +41,6 @@ jobs:
           if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
       - name: Deploy
         run: |
-          ssh cicd@dantes.pushkind.com "supervisorctl stop crawlers"
+          ssh cicd@dantes.pushkind.com "sudo /usr/bin/systemctl stop pushkind-crawlers.service"
           scp ./target/release/pushkind-crawlers cicd@dantes.pushkind.com:/var/www9/html/
-          ssh cicd@dantes.pushkind.com "supervisorctl start crawlers"
+          ssh cicd@dantes.pushkind.com "sudo /usr/bin/systemctl start pushkind-crawlers.service"
