@@ -13,16 +13,16 @@ use crate::crawlers::WebstoreCrawler;
 use crate::crawlers::build_reqwest_client;
 use crate::crawlers::parse_amount_units;
 
-/// Crawler for `gutenberg.ru` which limits concurrent HTTP requests
+/// Crawler for `teanadin.ru` which limits concurrent HTTP requests
 /// using a [`Semaphore`].
-pub struct WebstoreCrawlerGutenberg {
+pub struct WebstoreCrawlerTeanadin {
     crawler_id: i32,
     base_url: Url,
     client: reqwest::Client,
     semaphore: Arc<Semaphore>,
 }
 
-impl WebstoreCrawlerGutenberg {
+impl WebstoreCrawlerTeanadin {
     /// Creates a new crawler with the given concurrency limit.
     ///
     /// `concurrency` controls how many HTTP requests may be in flight at the
@@ -30,7 +30,7 @@ impl WebstoreCrawlerGutenberg {
     pub fn new(concurrency: usize, crawler_id: i32) -> CrawlerResult<Self> {
         Ok(Self {
             crawler_id,
-            base_url: Url::parse("https://gutenberg.ru/")
+            base_url: Url::parse("https://teanadin.ru/")
                 .map_err(|e| CrawlerError::Build(e.to_string()))?,
             client: build_reqwest_client()?,
             semaphore: Arc::new(Semaphore::new(concurrency)),
@@ -62,7 +62,7 @@ impl WebstoreCrawlerGutenberg {
             }
         };
 
-        let selector = Selector::parse("ul.menu-type-1 li a").unwrap();
+        let selector = Selector::parse("ul.header-menu__wide-submenu li a").unwrap();
 
         document
             .select(&selector)
@@ -85,20 +85,16 @@ impl WebstoreCrawlerGutenberg {
             }
         };
 
-        let selector = Selector::parse("div.module-pagination").unwrap();
-        let pagination = match document.select(&selector).next() {
-            Some(p) => p,
-            None => return result,
-        };
-
-        let selector = Selector::parse("div.nums > a").unwrap();
-        let page_links = pagination.select(&selector).collect::<Vec<_>>();
+        let selector = Selector::parse("div.module-pagination div.nums > a").unwrap();
+        let page_links = document.select(&selector).collect::<Vec<_>>();
         if page_links.is_empty() {
             return result;
         }
 
         if let Some(last_page_text) = page_links
-            .last()
+            .iter()
+            .rev()
+            .nth(1)
             .map(|e| e.text().collect::<String>().trim().to_string())
             && let Ok(last_page_number) = last_page_text.parse::<usize>()
             && let Ok(base_url) = self.base_url.join(url)
@@ -108,12 +104,12 @@ impl WebstoreCrawlerGutenberg {
                 let mut page_url = base_url.clone();
                 let mut pairs: Vec<(String, String)> = page_url
                     .query_pairs()
-                    .filter(|(k, _)| k != "page")
+                    .filter(|(k, _)| k != "PAGEN_2")
                     .map(|(k, v)| (k.to_string(), v.to_string()))
                     .collect();
 
                 // Insert the new page value
-                pairs.push(("page".to_string(), i.to_string()));
+                pairs.push(("PAGEN_2".to_string(), i.to_string()));
 
                 // Clear existing query and re-apply
                 page_url.set_query(None);
@@ -138,7 +134,7 @@ impl WebstoreCrawlerGutenberg {
             }
         };
 
-        let selector = Selector::parse("div.item-title > a").unwrap();
+        let selector = Selector::parse("div.catalog-block__info-title > a").unwrap();
         document
             .select(&selector)
             .filter_map(|link| {
@@ -150,7 +146,7 @@ impl WebstoreCrawlerGutenberg {
 }
 
 #[async_trait]
-impl WebstoreCrawler for WebstoreCrawlerGutenberg {
+impl WebstoreCrawler for WebstoreCrawlerTeanadin {
     /// Crawls the entire web store and returns all discovered products.
     ///
     /// Category pages, pagination, product links and product details are
@@ -202,7 +198,7 @@ impl WebstoreCrawler for WebstoreCrawlerGutenberg {
         };
 
         // Name
-        let name_selector = Selector::parse("h1#pagetitle").unwrap();
+        let name_selector = Selector::parse("h1.switcher-title").unwrap();
         let name = document
             .select(&name_selector)
             .next()
@@ -226,7 +222,7 @@ impl WebstoreCrawler for WebstoreCrawlerGutenberg {
             .join(" / ");
 
         // SKU
-        let sku_selector = Selector::parse("span.article__value").unwrap();
+        let sku_selector = Selector::parse("span.js-replace-article").unwrap();
         let sku = document
             .select(&sku_selector)
             .next()
@@ -234,7 +230,7 @@ impl WebstoreCrawler for WebstoreCrawlerGutenberg {
             .unwrap_or_default();
 
         // Price
-        let price_selector = Selector::parse("span.price_value").unwrap();
+        let price_selector = Selector::parse("span.price__new-val").unwrap();
         let price = document
             .select(&price_selector)
             .next()
@@ -242,7 +238,7 @@ impl WebstoreCrawler for WebstoreCrawlerGutenberg {
             .unwrap_or_default();
 
         // Amount
-        let amount_units_selector = Selector::parse("span.price_measure").unwrap();
+        let amount_units_selector = Selector::parse("span.sku-props__js-size").unwrap();
         let amount_units = document
             .select(&amount_units_selector)
             .next()
@@ -258,6 +254,8 @@ impl WebstoreCrawler for WebstoreCrawlerGutenberg {
             price: price
                 .replace(',', ".")
                 .replace(" ", "")
+                .replace("\u{00A0}", "")
+                .replace("₽", "")
                 .parse()
                 .unwrap_or(0.0),
             category: Some(category),
