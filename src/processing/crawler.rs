@@ -5,6 +5,7 @@ use crate::crawlers::WebstoreCrawler;
 use crate::crawlers::gutenberg::WebstoreCrawlerGutenberg;
 use crate::crawlers::rusteaco::WebstoreCrawlerRusteaco;
 use crate::crawlers::tea101::WebstoreCrawler101Tea;
+use crate::crawlers::teanadin::WebstoreCrawlerTeanadin;
 use crate::repository::CrawlerReader;
 use crate::repository::CrawlerWriter;
 use crate::repository::ProductWriter;
@@ -38,9 +39,10 @@ where
     }
 
     let web_crawler: Box<dyn WebstoreCrawler + Send + Sync> = match selector.as_str() {
-        "rusteaco" => Box::new(WebstoreCrawlerRusteaco::new(5, crawler.id)),
-        "101tea" => Box::new(WebstoreCrawler101Tea::new(5, crawler.id)),
-        "gutenberg" => Box::new(WebstoreCrawlerGutenberg::new(5, crawler.id)),
+        "rusteaco" => Box::new(WebstoreCrawlerRusteaco::new(5, crawler.id).unwrap()),
+        "101tea" => Box::new(WebstoreCrawler101Tea::new(5, crawler.id).unwrap()),
+        "gutenberg" => Box::new(WebstoreCrawlerGutenberg::new(5, crawler.id).unwrap()),
+        "teanadin" => Box::new(WebstoreCrawlerTeanadin::new(1, crawler.id).unwrap()),
         _ => {
             log::error!("Unknown crawler: {selector}");
             return;

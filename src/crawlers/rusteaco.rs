@@ -9,8 +9,9 @@ use serde::Deserialize;
 use tokio::sync::Semaphore;
 use url::Url;
 
-use crate::crawlers::WebstoreCrawler;
-use crate::crawlers::parse_amount_units;
+use crate::crawlers::{
+    CrawlerError, CrawlerResult, WebstoreCrawler, build_reqwest_client, parse_amount_units,
+};
 
 #[derive(Debug, Deserialize, Clone)]
 struct Variant {
@@ -62,13 +63,14 @@ impl WebstoreCrawlerRusteaco {
     ///
     /// `concurrency` controls how many HTTP requests may be in flight at the
     /// same time. The `crawler_id` is attached to each produced product.
-    pub fn new(concurrency: usize, crawler_id: i32) -> Self {
-        Self {
+    pub fn new(concurrency: usize, crawler_id: i32) -> CrawlerResult<Self> {
+        Ok(Self {
             crawler_id,
-            base_url: Url::parse("https://shop.rusteaco.ru/").unwrap(),
-            client: reqwest::Client::new(),
+            base_url: Url::parse("https://shop.rusteaco.ru/")
+                .map_err(|e| CrawlerError::Build(e.to_string()))?,
+            client: build_reqwest_client()?,
             semaphore: Arc::new(Semaphore::new(concurrency)),
-        }
+        })
     }
 
     /// Fetches a URL and parses it into [`Html`].

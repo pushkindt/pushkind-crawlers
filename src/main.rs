@@ -23,7 +23,7 @@ async fn main() {
     };
 
     let zmq_address =
-        env::var("ZMQ_CRAWLER").unwrap_or_else(|_| "tcp://127.0.0.1:5555".to_string());
+        env::var("ZMQ_CRAWLER").unwrap_or_else(|_| "tcp://127.0.0.1:5550".to_string());
     let context = zmq::Context::new();
     let responder = context.socket(zmq::PULL).expect("Cannot create zmq socket");
     responder

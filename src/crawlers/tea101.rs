@@ -7,7 +7,7 @@ use scraper::{Html, Selector};
 use tokio::sync::Semaphore;
 use url::Url;
 
-use crate::crawlers::WebstoreCrawler;
+use crate::crawlers::{CrawlerError, CrawlerResult, WebstoreCrawler, build_reqwest_client};
 
 /// Crawler for `101tea.ru` which limits concurrent HTTP requests
 /// using a [`Semaphore`].
@@ -23,13 +23,14 @@ impl WebstoreCrawler101Tea {
     ///
     /// `concurrency` controls how many HTTP requests may be in flight at the
     /// same time. The `crawler_id` is attached to each produced product.
-    pub fn new(concurrency: usize, crawler_id: i32) -> Self {
-        Self {
+    pub fn new(concurrency: usize, crawler_id: i32) -> CrawlerResult<Self> {
+        Ok(Self {
             crawler_id,
-            base_url: Url::parse("https://101tea.ru/").unwrap(),
-            client: reqwest::Client::new(),
+            base_url: Url::parse("https://101tea.ru/")
+                .map_err(|e| CrawlerError::Build(e.to_string()))?,
+            client: build_reqwest_client()?,
             semaphore: Arc::new(Semaphore::new(concurrency)),
-        }
+        })
     }
 
     /// Fetches a URL and parses it into [`Html`].
