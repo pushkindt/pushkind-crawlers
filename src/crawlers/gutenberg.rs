@@ -265,6 +265,7 @@ impl WebstoreCrawler for WebstoreCrawlerGutenberg {
             amount: Some(amount),
             description: Some(description),
             url: url.to_string(),
+            images: vec![],
         }]
     }
 }

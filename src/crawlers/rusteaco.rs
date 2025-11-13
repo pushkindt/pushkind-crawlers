@@ -46,6 +46,7 @@ fn variant_to_product(
         amount: Some(amount),
         description: Some(description.to_string()),
         url: format!("{url}#{}", v.sku),
+        images: vec![],
     }
 }
 
@@ -326,6 +327,7 @@ impl WebstoreCrawler for WebstoreCrawlerRusteaco {
                 amount: Some(amount),
                 description: Some(description),
                 url: url.to_string(),
+                images: vec![],
             }]
         }
     }

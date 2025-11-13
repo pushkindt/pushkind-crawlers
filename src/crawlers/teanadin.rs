@@ -247,6 +247,17 @@ impl WebstoreCrawler for WebstoreCrawlerTeanadin {
         // Parse "/100 г" as units: "г", amount: 100
         let (amount, units) = parse_amount_units(&amount_units);
 
+        let images_selector = Selector::parse("img.detail-gallery-big__picture").unwrap();
+        let images = document
+            .select(&images_selector)
+            .map(|el| {
+                self.base_url
+                    .join(el.value().attr("data-src").unwrap_or_default())
+                    .unwrap_or(self.base_url.clone())
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+
         vec![NewProduct {
             crawler_id: self.crawler_id,
             sku,
@@ -263,6 +274,7 @@ impl WebstoreCrawler for WebstoreCrawlerTeanadin {
             amount: Some(amount),
             description: Some(description),
             url: url.to_string(),
+            images,
         }]
     }
 }

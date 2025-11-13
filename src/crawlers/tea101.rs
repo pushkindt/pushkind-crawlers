@@ -280,6 +280,7 @@ impl WebstoreCrawler for WebstoreCrawler101Tea {
             amount: Some(amount),
             description: Some(description),
             url: url.to_string(),
+            images: vec![],
         }]
     }
 }
