@@ -149,7 +149,7 @@ impl ProductWriter for DieselRepository {
     }
 
     fn delete_products(&self, crawler_id: i32) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::{product_benchmark, products};
+        use pushkind_common::schema::dantes::{product_benchmark, product_images, products};
 
         let mut conn = self.conn()?;
 
@@ -161,6 +161,10 @@ impl ProductWriter for DieselRepository {
                 .load(conn)?;
 
             if !ids.is_empty() {
+                diesel::delete(
+                    product_images::table.filter(product_images::product_id.eq_any(&ids)),
+                )
+                .execute(conn)?;
                 diesel::delete(
                     product_benchmark::table.filter(product_benchmark::product_id.eq_any(&ids)),
                 )
