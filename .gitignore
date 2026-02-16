@@ -4,3 +4,4 @@ products.json
 test_client.py
 app.db*
 .fastembed_cache/
+config/
