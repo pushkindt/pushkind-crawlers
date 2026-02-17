@@ -6,6 +6,7 @@ use crate::crawlers::gutenberg::WebstoreCrawlerGutenberg;
 use crate::crawlers::rusteaco::WebstoreCrawlerRusteaco;
 use crate::crawlers::tea101::WebstoreCrawler101Tea;
 use crate::crawlers::teanadin::WebstoreCrawlerTeanadin;
+use crate::crawlers::wintergreen::WebstoreCrawlerWintergreen;
 use crate::repository::CrawlerReader;
 use crate::repository::CrawlerWriter;
 use crate::repository::ProductWriter;
@@ -43,6 +44,7 @@ where
         "101tea" => Box::new(WebstoreCrawler101Tea::new(5, crawler.id).unwrap()),
         "gutenberg" => Box::new(WebstoreCrawlerGutenberg::new(5, crawler.id).unwrap()),
         "teanadin" => Box::new(WebstoreCrawlerTeanadin::new(1, crawler.id).unwrap()),
+        "wintergreen" => Box::new(WebstoreCrawlerWintergreen::new(1, crawler.id).unwrap()),
         _ => {
             log::error!("Unknown crawler: {selector}");
             return;
