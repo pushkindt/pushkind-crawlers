@@ -8,6 +8,7 @@ pub mod gutenberg;
 pub mod rusteaco;
 pub mod tea101;
 pub mod teanadin;
+pub mod wintergreen;
 
 #[derive(Error, Debug)]
 pub enum CrawlerError {
