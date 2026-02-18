@@ -27,7 +27,7 @@ items. This service automates the data collection loop:
   by composing repository traits, guarding against concurrent runs, and logging
   progress.
 - **Crawler implementations** (`src/crawlers`): async scrapers for each retailer
-  that emit `pushkind_common::domain::dantes::product::NewProduct`.
+  that emit `pushkind_dantes::domain::product::NewProduct`.
 - **Repository layer** (`src/repository`): defines trait-based boundaries and the
   Diesel-backed `DieselRepository` that interacts with tables from
   `pushkind-common`.

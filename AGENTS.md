@@ -8,15 +8,15 @@ architecture and conventions.
 
 `pushkind-crawlers` is a Rust 2024 Tokio-based background service. It listens
 for `ZMQCrawlerMessage`s over ZeroMQ, hydrates shared domain models from the
-`pushkind-common` crate, and coordinates crawler refreshes and benchmark
+`pushkind-dantes` crate, and coordinates crawler refreshes and benchmark
 processing. The crate is organised into:
 
 - `src/crawlers`: site-specific scrapers that implement the `WebstoreCrawler`
-  trait and convert remote data into `pushkind_common::domain::dantes::product::NewProduct`.
+  trait and convert remote data into `pushkind_dantes::domain::product::NewProduct`.
 - `src/processing`: message handlers that orchestrate crawl/benchmark workflows,
   enforce idempotency, and compose repository traits.
 - `src/repository`: trait definitions and the Diesel-backed `DieselRepository`
-  that bridges between SQLite tables (via `pushkind_common::schema`) and domain
+  that bridges between SQLite tables (via `pushkind_dantes::schema`) and domain
   types.
 - `src/main.rs`: the ZeroMQ listener that spawns Tokio tasks per message.
 
@@ -71,12 +71,12 @@ cargo fmt --all -- --check
 
 ## Database Guidelines
 
-- Use Diesel’s query builder with schemas from `pushkind_common::schema::dantes`;
+- Use Diesel’s query builder with schemas from `pushkind_dantes::schema`;
   do not write raw SQL.
 - Obtain connections through `DieselRepository::conn()` and wrap multi-step
   changes in transactions when consistency matters.
 - Map Diesel structs to domain models with explicit `From`/`Into`
-  implementations provided by `pushkind-common`.
+  implementations provided by `pushkind-dantes`.
 - Maintain referential integrity manually where required (e.g., clear
   `product_benchmark` rows before deleting products) and convert missing records
   into `RepositoryError::NotFound` instead of panicking.

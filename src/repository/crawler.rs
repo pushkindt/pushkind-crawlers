@@ -1,13 +1,13 @@
 use diesel::prelude::*;
-use pushkind_common::domain::dantes::crawler::Crawler;
-use pushkind_common::models::dantes::crawler::Crawler as DbCrawler;
 use pushkind_common::repository::errors::RepositoryResult;
+use pushkind_dantes::domain::crawler::Crawler;
+use pushkind_dantes::models::crawler::Crawler as DbCrawler;
 
 use crate::repository::{CrawlerReader, CrawlerWriter, DieselRepository};
 
 impl CrawlerReader for DieselRepository {
     fn get_crawler(&self, selector: &str) -> RepositoryResult<Crawler> {
-        use pushkind_common::schema::dantes::crawlers;
+        use pushkind_dantes::schema::crawlers;
 
         let mut conn = self.conn()?;
 
@@ -20,7 +20,7 @@ impl CrawlerReader for DieselRepository {
     }
 
     fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>> {
-        use pushkind_common::schema::dantes::crawlers;
+        use pushkind_dantes::schema::crawlers;
 
         let mut conn = self.conn()?;
 
@@ -34,8 +34,8 @@ impl CrawlerReader for DieselRepository {
 
 impl CrawlerWriter for DieselRepository {
     fn update_crawler_stats(&self, crawler_id: i32) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::crawlers;
-        use pushkind_common::schema::dantes::products;
+        use pushkind_dantes::schema::crawlers;
+        use pushkind_dantes::schema::products;
 
         let mut conn = self.conn()?;
 
@@ -58,7 +58,7 @@ impl CrawlerWriter for DieselRepository {
     }
 
     fn set_crawler_processing(&self, crawler_id: i32, processing: bool) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::crawlers;
+        use pushkind_dantes::schema::crawlers;
 
         let mut conn = self.conn()?;
 

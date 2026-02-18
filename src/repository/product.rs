@@ -1,13 +1,14 @@
+use std::collections::HashMap;
+
 use bytemuck::cast_slice;
 use chrono::Utc;
 use diesel::prelude::*;
 use diesel::result::QueryResult;
 use pushkind_common::db::DbConnection;
-use pushkind_common::domain::dantes::product::{NewProduct, Product};
-use pushkind_common::models::dantes::product::{NewProduct as DbNewProduct, Product as DbProduct};
-use pushkind_common::models::dantes::product_image::{NewProductImage, ProductImage};
 use pushkind_common::repository::errors::{RepositoryError, RepositoryResult};
-use std::collections::HashMap;
+use pushkind_dantes::domain::product::{NewProduct, Product};
+use pushkind_dantes::models::product::{NewProduct as DbNewProduct, Product as DbProduct};
+use pushkind_dantes::models::product_image::{NewProductImage, ProductImage};
 
 use crate::repository::DieselRepository;
 use crate::repository::ProductReader;
@@ -18,7 +19,7 @@ fn replace_product_images(
     product_id: i32,
     image_urls: &[String],
 ) -> QueryResult<()> {
-    use pushkind_common::schema::dantes::product_images;
+    use pushkind_dantes::schema::product_images;
 
     diesel::delete(product_images::table.filter(product_images::product_id.eq(product_id)))
         .execute(conn)?;
@@ -44,7 +45,7 @@ fn replace_product_images(
 
 impl ProductReader for DieselRepository {
     fn list_products(&self, crawler_id: i32) -> RepositoryResult<Vec<Product>> {
-        use pushkind_common::schema::dantes::{product_images, products};
+        use pushkind_dantes::schema::{product_images, products};
 
         let mut conn = self.conn()?;
 
@@ -80,7 +81,7 @@ impl ProductReader for DieselRepository {
 
 impl ProductWriter for DieselRepository {
     fn create_products(&self, products: &[NewProduct]) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::products;
+        use pushkind_dantes::schema::products;
 
         if products.is_empty() {
             return Ok(0);
@@ -105,7 +106,7 @@ impl ProductWriter for DieselRepository {
     }
 
     fn update_products(&self, products: &[NewProduct]) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::products;
+        use pushkind_dantes::schema::products;
 
         let mut conn = self.conn()?;
 
@@ -134,7 +135,7 @@ impl ProductWriter for DieselRepository {
     }
 
     fn set_product_embedding(&self, product_id: i32, embedding: &[f32]) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::products;
+        use pushkind_dantes::schema::products;
 
         let mut conn = self.conn()?;
 
@@ -149,7 +150,7 @@ impl ProductWriter for DieselRepository {
     }
 
     fn delete_products(&self, crawler_id: i32) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::{product_benchmark, product_images, products};
+        use pushkind_dantes::schema::{product_benchmark, product_images, products};
 
         let mut conn = self.conn()?;
 
