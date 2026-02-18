@@ -3,12 +3,11 @@ use std::env;
 use config::Config;
 use dotenvy::dotenv;
 use pushkind_common::db::establish_connection_pool;
-use pushkind_common::models::dantes::zmq::ZMQCrawlerMessage;
-
 use pushkind_crawlers::models::config::ServerConfig;
 use pushkind_crawlers::processing::benchmark::process_benchmark_message;
 use pushkind_crawlers::processing::crawler::process_crawler_message;
 use pushkind_crawlers::repository::DieselRepository;
+use pushkind_dantes::domain::zmq::ZMQCrawlerMessage;
 
 /// Entry point for the crawler service.
 #[tokio::main]

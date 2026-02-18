@@ -1,5 +1,5 @@
 use futures::future;
-use pushkind_common::models::dantes::zmq::CrawlerSelector;
+use pushkind_dantes::domain::zmq::CrawlerSelector;
 
 use crate::crawlers::WebstoreCrawler;
 use crate::crawlers::gutenberg::WebstoreCrawlerGutenberg;

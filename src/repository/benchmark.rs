@@ -1,8 +1,8 @@
 use bytemuck::cast_slice;
 use diesel::prelude::*;
-use pushkind_common::domain::dantes::benchmark::Benchmark;
-use pushkind_common::models::dantes::benchmark::Benchmark as DbBenchmark;
 use pushkind_common::repository::errors::RepositoryResult;
+use pushkind_dantes::domain::benchmark::Benchmark;
+use pushkind_dantes::models::benchmark::Benchmark as DbBenchmark;
 
 use crate::repository::BenchmarkReader;
 use crate::repository::BenchmarkWriter;
@@ -10,7 +10,7 @@ use crate::repository::DieselRepository;
 
 impl BenchmarkReader for DieselRepository {
     fn get_benchmark(&self, benchmark_id: i32) -> RepositoryResult<Benchmark> {
-        use pushkind_common::schema::dantes::benchmarks;
+        use pushkind_dantes::schema::benchmarks;
 
         let mut conn = self.conn()?;
 
@@ -29,7 +29,7 @@ impl BenchmarkWriter for DieselRepository {
         benchmark_id: i32,
         embedding: &[f32],
     ) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::benchmarks;
+        use pushkind_dantes::schema::benchmarks;
 
         let mut conn = self.conn()?;
 
@@ -44,7 +44,7 @@ impl BenchmarkWriter for DieselRepository {
     }
 
     fn remove_benchmark_associations(&self, benchmark_id: i32) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::product_benchmark;
+        use pushkind_dantes::schema::product_benchmark;
 
         let mut conn = self.conn()?;
 
@@ -63,7 +63,7 @@ impl BenchmarkWriter for DieselRepository {
         product_id: i32,
         distance: f32,
     ) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::product_benchmark;
+        use pushkind_dantes::schema::product_benchmark;
 
         let mut conn = self.conn()?;
 
@@ -84,7 +84,7 @@ impl BenchmarkWriter for DieselRepository {
         benchmark_id: i32,
         processing: bool,
     ) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::benchmarks;
+        use pushkind_dantes::schema::benchmarks;
 
         let mut conn = self.conn()?;
 
@@ -96,8 +96,8 @@ impl BenchmarkWriter for DieselRepository {
     }
 
     fn update_benchmark_stats(&self, benchmark_id: i32) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::benchmarks;
-        use pushkind_common::schema::dantes::product_benchmark;
+        use pushkind_dantes::schema::benchmarks;
+        use pushkind_dantes::schema::product_benchmark;
 
         let mut conn = self.conn()?;
 

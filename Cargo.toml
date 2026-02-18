@@ -19,7 +19,7 @@ url = "2.5.8"
 async-trait = "0.1.89"
 zmq = "0.10.0"
 pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", features = [
-    "dantes",
+    "db",
 ] }
 diesel = { version = "2.3.6", features = [
     "sqlite",
@@ -28,12 +28,16 @@ diesel = { version = "2.3.6", features = [
     "returning_clauses_for_sqlite_3_35",
 ] }
 chrono = { version = "0.4.43", features = ["serde"] }
-fastembed = "5.9.0"
+fastembed = "5.5.0"
 bytemuck = "1.25.0"
 usearch = "2.24.0"
 rand = "0.10.0"
 regex = "1.12.3"
 config = { version = "0.15.19", default-features = false, features = ["yaml"] }
+pushkind-dantes = { git = "https://github.com/pushkindt/pushkind-dantes.git", version = "0.1.0", features = [
+    "data",
+], default-features = false }
+native-tls = "=0.2.16"
 
 [dev-dependencies]
 tempfile = "3.25.0"

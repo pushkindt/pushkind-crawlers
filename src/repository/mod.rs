@@ -1,8 +1,8 @@
 use pushkind_common::db::{DbConnection, DbPool};
-use pushkind_common::domain::dantes::benchmark::Benchmark;
-use pushkind_common::domain::dantes::crawler::Crawler;
-use pushkind_common::domain::dantes::product::{NewProduct, Product};
 use pushkind_common::repository::errors::RepositoryResult;
+use pushkind_dantes::domain::benchmark::Benchmark;
+use pushkind_dantes::domain::crawler::Crawler;
+use pushkind_dantes::domain::product::{NewProduct, Product};
 
 pub mod benchmark;
 pub mod crawler;
