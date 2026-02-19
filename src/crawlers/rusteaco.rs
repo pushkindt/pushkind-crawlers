@@ -10,7 +10,8 @@ use tokio::sync::Semaphore;
 use url::Url;
 
 use crate::crawlers::{
-    CrawlerError, CrawlerResult, WebstoreCrawler, build_reqwest_client, parse_amount_units,
+    CrawlerError, CrawlerResult, WebstoreCrawler, build_new_product, build_reqwest_client,
+    parse_amount_units,
 };
 
 #[derive(Debug, Deserialize, Clone)]
@@ -33,21 +34,22 @@ fn variant_to_product(
     description: &str,
     url: &str,
     crawler_id: i32,
-) -> NewProduct {
+) -> Option<NewProduct> {
     let (amount, units) = parse_amount_units(&v.title);
+    let price = v.price.replace(',', ".").parse().unwrap_or(0.0);
 
-    NewProduct {
+    build_new_product(
         crawler_id,
-        sku: v.sku.clone(),
-        name: name.to_string(),
-        price: v.price.replace(',', ".").parse().unwrap_or(0.0),
-        category: Some(category.to_string()),
-        units: Some(units),
-        amount: Some(amount),
-        description: Some(description.to_string()),
-        url: format!("{url}#{}", v.sku),
-        images: vec![],
-    }
+        v.sku.clone(),
+        name.to_string(),
+        Some(category.to_string()),
+        Some(units),
+        price,
+        Some(amount),
+        Some(description.to_string()),
+        format!("{url}#{}", v.sku),
+        vec![],
+    )
 }
 
 /// Crawler for `shop.rusteaco.ru` which limits concurrent HTTP requests
@@ -283,7 +285,7 @@ impl WebstoreCrawler for WebstoreCrawlerRusteaco {
             parsed
                 .variants
                 .into_iter()
-                .map(|v| {
+                .filter_map(|v| {
                     variant_to_product(v, &name, &category, &description, url, self.crawler_id)
                 })
                 .collect()
@@ -313,22 +315,25 @@ impl WebstoreCrawler for WebstoreCrawlerRusteaco {
                 .map(|el| el.text().collect::<String>().trim().to_string())
                 .unwrap_or_default();
 
-            vec![NewProduct {
-                crawler_id: self.crawler_id,
+            let price = price
+                .replace(',', ".")
+                .replace(" ", "")
+                .parse()
+                .unwrap_or(0.0);
+            build_new_product(
+                self.crawler_id,
                 sku,
                 name,
-                price: price
-                    .replace(',', ".")
-                    .replace(" ", "")
-                    .parse()
-                    .unwrap_or(0.0),
-                category: Some(category),
-                units: Some(units),
-                amount: Some(amount),
-                description: Some(description),
-                url: url.to_string(),
-                images: vec![],
-            }]
+                Some(category),
+                Some(units),
+                price,
+                Some(amount),
+                Some(description),
+                url.to_string(),
+                vec![],
+            )
+            .into_iter()
+            .collect()
         }
     }
 }
@@ -349,10 +354,10 @@ mod tests {
             title: "0.5 кг".into(),
         };
         let (name, category, description, url) = dummy_product_fields();
-        let product = variant_to_product(variant, name, category, description, url, 1);
+        let product = variant_to_product(variant, name, category, description, url, 1).unwrap();
         assert_eq!(product.units.as_deref(), Some("кг"));
-        assert!((product.amount.unwrap() - 0.5).abs() < f64::EPSILON);
-        assert!((product.price - 10.5).abs() < f64::EPSILON);
+        assert!((product.amount.unwrap().get() - 0.5).abs() < f64::EPSILON);
+        assert!((product.price.get() - 10.5).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -363,9 +368,9 @@ mod tests {
             title: "".into(),
         };
         let (name, category, description, url) = dummy_product_fields();
-        let product = variant_to_product(variant, name, category, description, url, 1);
+        let product = variant_to_product(variant, name, category, description, url, 1).unwrap();
         assert_eq!(product.units.as_deref(), Some("шт"));
-        assert!((product.amount.unwrap() - 1.0).abs() < f64::EPSILON);
+        assert!((product.amount.unwrap().get() - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -376,8 +381,8 @@ mod tests {
             title: "abc".into(),
         };
         let (name, category, description, url) = dummy_product_fields();
-        let product = variant_to_product(variant, name, category, description, url, 1);
+        let product = variant_to_product(variant, name, category, description, url, 1).unwrap();
         assert_eq!(product.units.as_deref(), Some("шт"));
-        assert!((product.amount.unwrap() - 1.0).abs() < f64::EPSILON);
+        assert!((product.amount.unwrap().get() - 1.0).abs() < f64::EPSILON);
     }
 }

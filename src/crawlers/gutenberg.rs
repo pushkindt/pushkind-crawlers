@@ -10,6 +10,7 @@ use url::Url;
 use crate::crawlers::CrawlerError;
 use crate::crawlers::CrawlerResult;
 use crate::crawlers::WebstoreCrawler;
+use crate::crawlers::build_new_product;
 use crate::crawlers::build_reqwest_client;
 use crate::crawlers::parse_amount_units;
 
@@ -251,21 +252,25 @@ impl WebstoreCrawler for WebstoreCrawlerGutenberg {
         // Parse "/100 г" as units: "г", amount: 100
         let (amount, units) = parse_amount_units(&amount_units);
 
-        vec![NewProduct {
-            crawler_id: self.crawler_id,
+        let price = price
+            .replace(',', ".")
+            .replace(" ", "")
+            .parse()
+            .unwrap_or(0.0);
+
+        build_new_product(
+            self.crawler_id,
             sku,
             name,
-            price: price
-                .replace(',', ".")
-                .replace(" ", "")
-                .parse()
-                .unwrap_or(0.0),
-            category: Some(category),
-            units: Some(units),
-            amount: Some(amount),
-            description: Some(description),
-            url: url.to_string(),
-            images: vec![],
-        }]
+            Some(category),
+            Some(units),
+            price,
+            Some(amount),
+            Some(description),
+            url.to_string(),
+            vec![],
+        )
+        .into_iter()
+        .collect()
     }
 }

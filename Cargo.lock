@@ -299,9 +299,9 @@ checksum = "f4ad8f11f288f48ca24471bbd51ac257aaeaaa07adae295591266b792902ae64"
 
 [[package]]
 name = "bumpalo"
-version = "3.19.1"
+version = "3.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510"
+checksum = "5c6f81257d10a0f602a294ae4182251151ff97dbb504ef9afcdda4a64b24d9b4"
 
 [[package]]
 name = "bytemuck"
@@ -1095,9 +1095,9 @@ dependencies = [
 
 [[package]]
 name = "fastembed"
-version = "5.9.0"
+version = "5.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6f8b48452e32595e2fcb89d0c582490681ef4febca0ae037fc75a122525953a"
+checksum = "b4339d45a80579ab8305616a501eacdbf18fb0f7def7fa6e4c0b75941416d5b0"
 dependencies = [
  "anyhow",
  "hf-hub",
@@ -2688,7 +2688,7 @@ dependencies = [
 [[package]]
 name = "pushkind-dantes"
 version = "0.1.0"
-source = "git+https://github.com/pushkindt/pushkind-dantes.git#b9ddd0e1e9e0848f229791fde6a93008a55ad66a"
+source = "git+https://github.com/pushkindt/pushkind-dantes.git#59d8bc6cffd5ceb79f15fc9eb342db6e02f89e4a"
 dependencies = [
  "chrono",
  "diesel",

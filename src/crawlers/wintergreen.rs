@@ -10,6 +10,7 @@ use url::Url;
 use crate::crawlers::CrawlerError;
 use crate::crawlers::CrawlerResult;
 use crate::crawlers::WebstoreCrawler;
+use crate::crawlers::build_new_product;
 use crate::crawlers::build_reqwest_client;
 
 /// Crawler for `wintergreen.ru` which limits concurrent HTTP requests
@@ -283,17 +284,19 @@ impl WebstoreCrawler for WebstoreCrawlerWintergreen {
             })
             .collect::<Vec<_>>();
 
-        vec![NewProduct {
-            crawler_id: self.crawler_id,
+        build_new_product(
+            self.crawler_id,
             sku,
             name,
+            Some(category),
+            Some(units),
             price,
-            category: Some(category),
-            units: Some(units),
-            amount: Some(amount),
-            description: Some(description),
-            url: url.to_string(),
+            Some(amount),
+            Some(description),
+            url.to_string(),
             images,
-        }]
+        )
+        .into_iter()
+        .collect()
     }
 }
