@@ -7,6 +7,7 @@ use scraper::{Html, Selector};
 use tokio::sync::Semaphore;
 use url::Url;
 
+use crate::crawlers::build_new_product;
 use crate::crawlers::{CrawlerError, CrawlerResult, WebstoreCrawler, build_reqwest_client};
 
 /// Crawler for `101tea.ru` which limits concurrent HTTP requests
@@ -270,17 +271,19 @@ impl WebstoreCrawler for WebstoreCrawler101Tea {
             .and_then(|s| s.parse::<f64>().ok())
             .unwrap_or_default();
 
-        vec![NewProduct {
-            crawler_id: self.crawler_id,
+        build_new_product(
+            self.crawler_id,
             sku,
             name,
+            Some(category),
+            Some(units),
             price,
-            category: Some(category),
-            units: Some(units),
-            amount: Some(amount),
-            description: Some(description),
-            url: url.to_string(),
-            images: vec![],
-        }]
+            Some(amount),
+            Some(description),
+            url.to_string(),
+            vec![],
+        )
+        .into_iter()
+        .collect()
     }
 }

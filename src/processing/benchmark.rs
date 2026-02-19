@@ -3,6 +3,7 @@ use std::error::Error;
 use bytemuck::cast_slice;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use pushkind_dantes::domain::benchmark::Benchmark;
+use pushkind_dantes::domain::types::{BenchmarkId, ProductId, SimilarityDistance};
 use usearch::{Index, IndexOptions, MetricKind, ScalarKind};
 
 use crate::repository::{
@@ -47,7 +48,7 @@ fn normalize(vec: &[f32]) -> Vec<f32> {
 /// them, then builds a cosine index with `usearch` to find the closest
 /// products. Associations in the database are replaced with the top results
 /// and the benchmark processing flag is updated when complete.
-pub async fn process_benchmark_message<R>(benchmark_id: i32, repo: R)
+pub async fn process_benchmark_message<R>(benchmark_id: BenchmarkId, repo: R)
 where
     R: BenchmarkReader + BenchmarkWriter + ProductReader + ProductWriter + CrawlerReader,
 {
@@ -99,13 +100,13 @@ where
         cast_slice(&blob).to_vec()
     } else {
         let text = prompt(
-            &benchmark.name,
-            &benchmark.sku,
-            &benchmark.category,
-            &benchmark.units,
-            benchmark.price,
-            benchmark.amount,
-            &benchmark.description,
+            benchmark.name.as_str(),
+            benchmark.sku.as_str(),
+            benchmark.category.as_str(),
+            benchmark.units.as_str(),
+            benchmark.price.get(),
+            benchmark.amount.get(),
+            benchmark.description.as_str(),
         );
 
         let emb = match embedder.embed(vec![text], None) {
@@ -154,12 +155,12 @@ where
                 cast_slice(&blob).to_vec()
             } else {
                 let text = prompt(
-                    &product.name,
-                    &product.sku,
+                    product.name.as_str(),
+                    product.sku.as_str(),
                     product.category.as_deref().unwrap_or(""),
                     product.units.as_deref().unwrap_or(""),
-                    product.price,
-                    product.amount.unwrap_or_default(),
+                    product.price.get(),
+                    product.amount.map(|value| value.get()).unwrap_or_default(),
                     product.description.as_deref().unwrap_or(""),
                 );
 
@@ -177,7 +178,7 @@ where
                 emb
             };
 
-            product_embeddings.push((product.id, embedding));
+            product_embeddings.push((product.id.get(), embedding));
         }
 
         let top_10_products = match search_top_10(&benchmark_embedding, &product_embeddings) {
@@ -194,8 +195,23 @@ where
             if distance < threshold {
                 continue;
             }
-            let product_id = key as i32;
-            if let Err(e) = repo.set_benchmark_association(benchmark_id, product_id, distance) {
+            let product_id = match ProductId::new(key as i32) {
+                Ok(product_id) => product_id,
+                Err(e) => {
+                    log::warn!("Skipping invalid product id from similarity index: {e}");
+                    continue;
+                }
+            };
+            let similarity_distance = match SimilarityDistance::new(distance) {
+                Ok(similarity_distance) => similarity_distance,
+                Err(e) => {
+                    log::warn!("Skipping invalid similarity distance: {e}");
+                    continue;
+                }
+            };
+            if let Err(e) =
+                repo.set_benchmark_association(benchmark_id, product_id, similarity_distance)
+            {
                 log::error!("Failed to set association: {e:?}");
                 return;
             }

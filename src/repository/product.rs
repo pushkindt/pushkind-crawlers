@@ -7,6 +7,7 @@ use diesel::result::QueryResult;
 use pushkind_common::db::DbConnection;
 use pushkind_common::repository::errors::{RepositoryError, RepositoryResult};
 use pushkind_dantes::domain::product::{NewProduct, Product};
+use pushkind_dantes::domain::types::{CrawlerId, ImageUrl, ProductId};
 use pushkind_dantes::models::product::{NewProduct as DbNewProduct, Product as DbProduct};
 use pushkind_dantes::models::product_image::{NewProductImage, ProductImage};
 
@@ -17,7 +18,7 @@ use crate::repository::ProductWriter;
 fn replace_product_images(
     conn: &mut DbConnection,
     product_id: i32,
-    image_urls: &[String],
+    image_urls: &[ImageUrl],
 ) -> QueryResult<()> {
     use pushkind_dantes::schema::product_images;
 
@@ -32,7 +33,7 @@ fn replace_product_images(
         .iter()
         .map(|url| NewProductImage {
             product_id,
-            url: url.clone(),
+            url: url.as_str().to_string(),
         })
         .collect::<Vec<_>>();
 
@@ -44,13 +45,13 @@ fn replace_product_images(
 }
 
 impl ProductReader for DieselRepository {
-    fn list_products(&self, crawler_id: i32) -> RepositoryResult<Vec<Product>> {
+    fn list_products(&self, crawler_id: CrawlerId) -> RepositoryResult<Vec<Product>> {
         use pushkind_dantes::schema::{product_images, products};
 
         let mut conn = self.conn()?;
 
         let products: Vec<DbProduct> = products::table
-            .filter(products::crawler_id.eq(crawler_id))
+            .filter(products::crawler_id.eq(crawler_id.get()))
             .load::<DbProduct>(&mut conn)?;
 
         let product_ids: Vec<i32> = products.iter().map(|p| p.id).collect();
@@ -67,15 +68,22 @@ impl ProductReader for DieselRepository {
             }
         }
 
-        Ok(products
+        products
             .into_iter()
             .map(|db_product| {
                 let image_urls = images_by_product.remove(&db_product.id).unwrap_or_default();
-                let mut product: Product = db_product.into();
-                product.images = image_urls;
-                product
+                let mut product: Product = Product::try_from(db_product)
+                    .map_err(|err| RepositoryError::ValidationError(err.to_string()))?;
+                product.images = image_urls
+                    .into_iter()
+                    .map(|url| {
+                        ImageUrl::new(url)
+                            .map_err(|err| RepositoryError::ValidationError(err.to_string()))
+                    })
+                    .collect::<RepositoryResult<Vec<_>>>()?;
+                Ok(product)
             })
-            .collect())
+            .collect::<RepositoryResult<Vec<_>>>()
     }
 }
 
@@ -134,7 +142,11 @@ impl ProductWriter for DieselRepository {
         Ok(affected)
     }
 
-    fn set_product_embedding(&self, product_id: i32, embedding: &[f32]) -> RepositoryResult<usize> {
+    fn set_product_embedding(
+        &self,
+        product_id: ProductId,
+        embedding: &[f32],
+    ) -> RepositoryResult<usize> {
         use pushkind_dantes::schema::products;
 
         let mut conn = self.conn()?;
@@ -142,14 +154,14 @@ impl ProductWriter for DieselRepository {
         // Convert &[f32] to &[u8]
         let blob: Vec<u8> = cast_slice(embedding).to_vec();
 
-        let affected = diesel::update(products::table.filter(products::id.eq(product_id)))
+        let affected = diesel::update(products::table.filter(products::id.eq(product_id.get())))
             .set(products::embedding.eq(blob))
             .execute(&mut conn)?;
 
         Ok(affected)
     }
 
-    fn delete_products(&self, crawler_id: i32) -> RepositoryResult<usize> {
+    fn delete_products(&self, crawler_id: CrawlerId) -> RepositoryResult<usize> {
         use pushkind_dantes::schema::{product_benchmark, product_images, products};
 
         let mut conn = self.conn()?;
@@ -157,7 +169,7 @@ impl ProductWriter for DieselRepository {
         let deleted = conn.transaction(|conn| {
             // Fetch product ids to cascade delete related benchmark associations
             let ids: Vec<i32> = products::table
-                .filter(products::crawler_id.eq(crawler_id))
+                .filter(products::crawler_id.eq(crawler_id.get()))
                 .select(products::id)
                 .load(conn)?;
 
@@ -172,7 +184,7 @@ impl ProductWriter for DieselRepository {
                 .execute(conn)?;
             }
 
-            diesel::delete(products::table.filter(products::crawler_id.eq(crawler_id)))
+            diesel::delete(products::table.filter(products::crawler_id.eq(crawler_id.get())))
                 .execute(conn)
         })?;
 

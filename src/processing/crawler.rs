@@ -40,11 +40,11 @@ where
     }
 
     let web_crawler: Box<dyn WebstoreCrawler + Send + Sync> = match selector.as_str() {
-        "rusteaco" => Box::new(WebstoreCrawlerRusteaco::new(5, crawler.id).unwrap()),
-        "101tea" => Box::new(WebstoreCrawler101Tea::new(5, crawler.id).unwrap()),
-        "gutenberg" => Box::new(WebstoreCrawlerGutenberg::new(5, crawler.id).unwrap()),
-        "teanadin" => Box::new(WebstoreCrawlerTeanadin::new(1, crawler.id).unwrap()),
-        "wintergreen" => Box::new(WebstoreCrawlerWintergreen::new(1, crawler.id).unwrap()),
+        "rusteaco" => Box::new(WebstoreCrawlerRusteaco::new(5, crawler.id.get()).unwrap()),
+        "101tea" => Box::new(WebstoreCrawler101Tea::new(5, crawler.id.get()).unwrap()),
+        "gutenberg" => Box::new(WebstoreCrawlerGutenberg::new(5, crawler.id.get()).unwrap()),
+        "teanadin" => Box::new(WebstoreCrawlerTeanadin::new(1, crawler.id.get()).unwrap()),
+        "wintergreen" => Box::new(WebstoreCrawlerWintergreen::new(1, crawler.id.get()).unwrap()),
         _ => {
             log::error!("Unknown crawler: {selector}");
             return;
