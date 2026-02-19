@@ -63,6 +63,9 @@ cargo fmt --all -- --check
 - Prefer dependency injection via trait bounds (e.g., `R: ProductReader +
   ProductWriter`) and pass `DbPool`/traits into functions instead of relying on
   globals.
+- Use strong domain types whenever available; prefer domain-specific value
+  objects/newtypes over raw primitives (`String`, `i64`, etc.) in business
+  logic and module interfaces.
 - Normalise/sanitise external data inside crawler modules; keep transformation
   utilities (like `parse_amount_units`) reusable.
 - When working with embeddings, convert between `Vec<f32>` and SQLite blobs
