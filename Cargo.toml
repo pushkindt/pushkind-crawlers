@@ -37,7 +37,6 @@ config = { version = "0.15.19", default-features = false, features = ["yaml"] }
 pushkind-dantes = { git = "https://github.com/pushkindt/pushkind-dantes.git", version = "0.1.0", features = [
     "data",
 ], default-features = false }
-native-tls = "=0.2.16"
 
 [dev-dependencies]
 tempfile = "3.25.0"

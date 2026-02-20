@@ -6,7 +6,7 @@
 - accepts crawler and benchmark jobs over ZeroMQ,
 - crawls external tea webstores and normalizes products into `NewProduct`,
 - persists products/metadata into SQLite via Diesel repository traits,
-- computes text embeddings and benchmark-to-product associations.
+- computes text embeddings plus benchmark/product-category similarity matches.
 
 This document specifies the current implemented behavior in this repository.
 
@@ -16,7 +16,8 @@ In scope:
 - ZeroMQ message intake (`PULL` socket).
 - Crawler orchestration for full refresh and targeted product updates.
 - Benchmark embedding and similarity matching.
-- Repository read/write behavior for crawlers, products, benchmarks.
+- Product-to-category matching against hub category directory.
+- Repository read/write behavior for crawlers, products, benchmarks, categories.
 
 Out of scope:
 - HTTP API or UI.
@@ -69,6 +70,7 @@ Incoming bytes are decoded as `pushkind_dantes::domain::zmq::ZMQCrawlerMessage`.
 Dispatch:
 - `ZMQCrawlerMessage::Crawler(crawler_msg)` -> `process_crawler_message`
 - `ZMQCrawlerMessage::Benchmark(benchmark_id)` -> `process_benchmark_message`
+- `ZMQCrawlerMessage::ProductCategoryMatch(hub_id)` -> `process_product_category_match_message`
 
 Operational behavior:
 - Parse failures are logged and skipped.
@@ -79,6 +81,7 @@ Observed JSON examples from test client:
 - `{"Crawler":{"Selector":"wintergreen"}}`
 - `{"Crawler":{"SelectorProducts":["teanadin",["https://..."]]}}`
 - `{"Benchmark":1}`
+- `{"ProductCategoryMatch":1}`
 
 ## 6. Crawler Processing Specification
 
@@ -203,6 +206,11 @@ Trait boundaries:
 - `CrawlerWriter`: `update_crawler_stats`, `set_crawler_processing`
 - `BenchmarkReader`: `get_benchmark`
 - `BenchmarkWriter`: benchmark embedding/association/processing/stats methods
+- `CategoryReader`: `list_categories`
+- `CategoryWriter`: `set_category_embedding`
+- `ProductCategoryWriter`: `set_product_category_automatic`, `clear_product_categories_by_crawler`
+- `ProcessingGuardReader`: `has_any_processing_in_hub`
+- `ProcessingGuardWriter`: `set_hub_crawlers_processing`, `set_hub_benchmarks_processing`
 
 Key persistence behavior:
 - `create_products` inserts one-by-one in a transaction and writes images.
@@ -211,6 +219,8 @@ Key persistence behavior:
 - `delete_products` transactionally deletes related `product_images` and `product_benchmark` before product deletion.
 - Embeddings are stored as SQLite BLOB (`Vec<f32>` <-> bytes via `bytemuck::cast_slice`).
 - `update_*_stats` methods set `processing=false`, update timestamps, and count associated products.
+- Automatic category assignment updates never overwrite rows with
+  `category_assignment_source = "manual"`.
 
 ## 9. Benchmark Processing Specification
 
@@ -237,7 +247,7 @@ Workflow:
 - perform ANN search with `usearch` cosine index over crawler products,
 - take top 10 neighbors.
 6. Convert `usearch` distance to similarity via `similarity = 1.0 - distance`.
-7. Apply threshold `similarity >= 0.8`.
+7. Apply threshold `similarity >= SIMILARITY_THRESHOLD` (currently `0.8`).
 8. Insert valid `(benchmark_id, product_id, similarity_distance)` associations.
 
 Prompt template used for embeddings:
@@ -249,11 +259,38 @@ Prompt template used for embeddings:
 - Amount
 - Description
 
+### 9.1 Product Category Match Processing
+
+Handler: `process_product_category_match_message<R>(hub_id, repo)` where
+`R: CrawlerReader + ProductReader + ProductWriter + CategoryReader + CategoryWriter + ProductCategoryWriter + ProcessingGuardReader + ProcessingGuardWriter`.
+
+Workflow:
+1. Check hub-scoped processing guard:
+- if any crawler/benchmark in `hub_id` has `processing=true`, log warning and skip.
+2. Set all crawlers and benchmarks in `hub_id` to `processing=true`.
+3. Run matching job:
+- load all hub crawlers and products,
+- load all hub categories,
+- ensure category embeddings exist (generate + persist if missing, category prompt is category name only),
+- ensure product embeddings exist (generate + persist if missing),
+- build cosine ANN index over category embeddings,
+- for each product, query top-1 category candidate and compute similarity
+  `1.0 - distance`,
+- apply `SIMILARITY_THRESHOLD`,
+- persist `product.category_id` via automatic assignment method (manual source rows stay unchanged).
+4. Reset all crawlers and benchmarks in `hub_id` back to `processing=false` in
+   finalization (success and failure paths).
+
+Job output behavior:
+- `category_id` is set to best match when above threshold.
+- `category_id` is set to `NULL` when no category candidate or below threshold.
+- only `category_id` is persisted as matching output (no category score storage).
+
 ## 10. Logging and Error Semantics
 
 Logging levels:
-- `info`: lifecycle events (message received, per-crawler benchmark processing, finished events).
-- `warn`: concurrent processing guard, invalid converted IDs/distances.
+- `info`: lifecycle events (message received, benchmark/category run summary, finished events).
+- `warn`: concurrent processing guard skips, invalid converted IDs/distances, skipped assignments.
 - `error`: configuration failures, parsing failures, HTTP failures, DB failures, embedding/search failures.
 
 Failure behavior:
@@ -266,19 +303,23 @@ Failure behavior:
 - Crawler HTTP parallelism: bounded by site-specific semaphore size.
 - Within a crawl run, category/page/product fetch operations use `futures::join_all`.
 - Benchmark matching builds an in-memory `usearch` index per crawler product set.
+- Category matching builds an in-memory `usearch` index per hub category set and
+  queries it once per product.
 
 ## 12. Testing Status
 
 Current tests in repository:
 - `src/processing/benchmark.rs`: prompt formatting unit test.
+- `src/processing/embedding.rs`: nearest-neighbor behavior tests.
 - `src/crawlers/rusteaco.rs`: variant conversion and amount/unit defaulting tests.
+- `src/processing/category.rs`: category prompt and hub processing-guard lifecycle unit tests.
 - `tests/db.rs` + `tests/common/mod.rs`: temporary DB lifecycle helper test.
 
 No broad integration coverage currently exists for:
 - end-to-end ZeroMQ message processing,
 - crawler HTML parsing against fixtures,
 - repository CRUD behavior across all methods,
-- benchmark association threshold logic.
+- benchmark/category association threshold logic in integration scenarios.
 
 ## 13. Operational Commands
 
@@ -320,6 +361,8 @@ Current behavior is intentionally best-effort and not strictly idempotent.
 
 - Duplicate ZeroMQ messages are allowed and may trigger duplicate work.
 - Processing guards (`processing=true`) prevent some concurrent overlap per crawler/benchmark but do not provide message-level deduplication guarantees.
+- Product category matching is replay-safe for unchanged data, but repeated runs
+  can still perform expensive embedding/search work.
 - There is no message ID or durable dedupe store in this service today.
 
 Operational interpretation:

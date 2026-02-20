@@ -1,44 +1,14 @@
-use std::error::Error;
-
-use bytemuck::cast_slice;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use pushkind_dantes::domain::benchmark::Benchmark;
 use pushkind_dantes::domain::types::{BenchmarkId, ProductId, SimilarityDistance};
-use usearch::{Index, IndexOptions, MetricKind, ScalarKind};
 
+use crate::SIMILARITY_THRESHOLD;
+use crate::processing::embedding::{
+    load_or_generate_embedding, product_embedding_prompt, search_top_k,
+};
 use crate::repository::{
     BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductReader, ProductWriter,
 };
-
-/// Build a textual prompt describing a benchmark or product for embedding.
-///
-/// The prompt includes the following fields in order: name, SKU, category,
-/// units, price, amount and description.
-fn prompt(
-    name: &str,
-    sku: &str,
-    category: &str,
-    units: &str,
-    price: f64,
-    amount: f64,
-    description: &str,
-) -> String {
-    format!(
-        "Name: {name}\nSKU: {sku}\nCategory: {category}\nUnits: {units}\nPrice: {price}\nAmount: {amount}\nDescription: {description}",
-    )
-}
-
-/// Normalize a vector to unit length.
-///
-/// Returns the original vector when the norm is zero.
-fn normalize(vec: &[f32]) -> Vec<f32> {
-    let norm = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
-    if norm == 0.0 {
-        vec.to_vec() // Clone into a Vec<f32>
-    } else {
-        vec.iter().map(|x| x / norm).collect()
-    }
-}
 
 /// Generate embeddings for a benchmark and related products, build a search
 /// index and update benchmark-product associations.
@@ -96,31 +66,33 @@ where
             }
         };
 
-    let benchmark_embedding: Vec<f32> = if let Some(blob) = benchmark.embedding {
-        cast_slice(&blob).to_vec()
-    } else {
-        let text = prompt(
-            benchmark.name.as_str(),
-            benchmark.sku.as_str(),
-            benchmark.category.as_str(),
-            benchmark.units.as_str(),
-            benchmark.price.get(),
-            benchmark.amount.get(),
-            benchmark.description.as_str(),
-        );
-
-        let emb = match embedder.embed(vec![text], None) {
-            Ok(emb) => normalize(&emb.into_iter().next().unwrap_or_default()),
-            Err(e) => {
-                log::error!("Failed to embed benchmark: {e:?}");
-                return;
-            }
-        };
-        if let Err(e) = repo.set_benchmark_embedding(benchmark.id, &emb) {
-            log::error!("Failed to set benchmark embedding: {e:?}");
+    let benchmark_prompt = product_embedding_prompt(
+        benchmark.name.as_str(),
+        benchmark.sku.as_str(),
+        benchmark.category.as_str(),
+        benchmark.units.as_str(),
+        benchmark.price.get(),
+        benchmark.amount.get(),
+        benchmark.description.as_str(),
+    );
+    let benchmark_embedding = match load_or_generate_embedding(
+        benchmark.embedding.as_deref(),
+        benchmark_prompt,
+        &mut embedder,
+        |embedding| {
+            repo.set_benchmark_embedding(benchmark.id, embedding)
+                .map(|_| ())
+                .map_err(|error| format!("Failed to set benchmark embedding: {error:?}"))
+        },
+    ) {
+        Ok((embedding, _generated)) => embedding,
+        Err(error) => {
+            log::error!(
+                "Failed to resolve benchmark embedding for benchmark {}: {error}",
+                benchmark.id
+            );
             return;
         }
-        emb
     };
 
     let crawlers = match repo.list_crawlers(benchmark.hub_id) {
@@ -151,37 +123,39 @@ where
         let mut product_embeddings: Vec<(i32, Vec<f32>)> = Vec::new();
 
         for product in products {
-            let embedding: Vec<f32> = if let Some(blob) = product.embedding {
-                cast_slice(&blob).to_vec()
-            } else {
-                let text = prompt(
-                    product.name.as_str(),
-                    product.sku.as_str(),
-                    product.category.as_deref().unwrap_or(""),
-                    product.units.as_deref().unwrap_or(""),
-                    product.price.get(),
-                    product.amount.map(|value| value.get()).unwrap_or_default(),
-                    product.description.as_deref().unwrap_or(""),
-                );
-
-                let emb = match embedder.embed(vec![text], None) {
-                    Ok(emb) => normalize(&emb.into_iter().next().unwrap_or_default()),
-                    Err(e) => {
-                        log::error!("Failed to embed product: {e:?}");
-                        return;
-                    }
-                };
-                if let Err(e) = repo.set_product_embedding(product.id, &emb) {
-                    log::error!("Failed to set product embedding: {e:?}");
+            let product_prompt = product_embedding_prompt(
+                product.name.as_str(),
+                product.sku.as_str(),
+                product.category.as_deref().unwrap_or(""),
+                product.units.as_deref().unwrap_or(""),
+                product.price.get(),
+                product.amount.map(|value| value.get()).unwrap_or_default(),
+                product.description.as_deref().unwrap_or(""),
+            );
+            let embedding = match load_or_generate_embedding(
+                product.embedding.as_deref(),
+                product_prompt,
+                &mut embedder,
+                |value| {
+                    repo.set_product_embedding(product.id, value)
+                        .map(|_| ())
+                        .map_err(|error| format!("Failed to set product embedding: {error:?}"))
+                },
+            ) {
+                Ok((embedding, _generated)) => embedding,
+                Err(error) => {
+                    log::error!(
+                        "Failed to resolve product embedding for product {}: {error}",
+                        product.id
+                    );
                     return;
                 }
-                emb
             };
 
             product_embeddings.push((product.id.get(), embedding));
         }
 
-        let top_10_products = match search_top_10(&benchmark_embedding, &product_embeddings) {
+        let top_10_products = match search_top_k(&benchmark_embedding, &product_embeddings, 10) {
             Ok(top_10_products) => top_10_products,
             Err(e) => {
                 log::error!("Failed to search top 10 products: {e:?}");
@@ -189,10 +163,9 @@ where
             }
         };
 
-        let threshold = 0.8;
         for (key, distance) in top_10_products {
             let distance = 1.0 - distance;
-            if distance < threshold {
+            if distance < SIMILARITY_THRESHOLD {
                 continue;
             }
             let product_id = match ProductId::new(key as i32) {
@@ -218,48 +191,13 @@ where
         }
     }
 }
-/// Search the top 10 closest products to the given benchmark embedding.
-fn search_top_10<'a, T>(
-    benchmark_embedding: &[f32],
-    products: &'a [(i32, T)],
-) -> Result<Vec<(u64, f32)>, Box<dyn Error>>
-where
-    T: AsRef<[f32]> + 'a,
-{
-    let dim = benchmark_embedding.len();
-
-    let index = Index::new(&IndexOptions {
-        dimensions: dim,
-        metric: MetricKind::Cos,
-        quantization: ScalarKind::F32,
-        ..Default::default()
-    })?;
-
-    index.reserve(products.len())?;
-
-    for (id, emb) in products {
-        index.add(*id as u64, emb.as_ref())?;
-    }
-
-    let neighbors = index.search(benchmark_embedding, 10)?;
-
-    let results: Vec<(u64, f32)> = neighbors
-        .keys
-        .iter()
-        .zip(neighbors.distances.iter())
-        .map(|(&k, &d)| (k, d))
-        .collect();
-
-    Ok(results)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn prompt_produces_expected_string() {
-        let result = prompt(
+        let result = product_embedding_prompt(
             "Sample Name",
             "SKU123",
             "Category",

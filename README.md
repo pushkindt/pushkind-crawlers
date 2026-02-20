@@ -26,3 +26,20 @@ cargo run --release
 ```bash
 python test_client.py
 ```
+
+The service logs when crawlers and benchmarks start/finish, and any issues with
+fetching, parsing, or database updates.
+
+## Development workflow
+
+- Format: `cargo fmt --all`
+- Lint: `cargo clippy --all-features --tests -- -Dwarnings`
+- Tests: `cargo test --all-features`
+- One-shot helper: `make check`
+- Source of truth: `SPEC.md`
+- Feature specs: `specs/features/<name>.md`
+- Implementation plans: `plans/<name>.md`
+- Architecture decisions (ADRs): `specs/decisions/`
+
+When adding new functionality, follow the guidelines in [`AGENTS.md`](AGENTS.md)
+to keep code consistent with the existing architecture.
