@@ -4,6 +4,14 @@ This document provides guidance to AI code generators when working in this
 repository. Follow these practices so new code matches the established
 architecture and conventions.
 
+## Spec-Driven Workflow
+
+- Always obey `SPEC.md`.
+- For any new work, require both `specs/features/<name>.md` and
+  `plans/<name>.md`.
+- If a change touches architecture, add or update an ADR in
+  `specs/decisions/`.
+
 ## Project Context
 
 `pushkind-crawlers` is a Rust 2024 Tokio-based background service. It listens

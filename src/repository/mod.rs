@@ -1,13 +1,15 @@
 use pushkind_common::db::{DbConnection, DbPool};
 use pushkind_common::repository::errors::RepositoryResult;
 use pushkind_dantes::domain::benchmark::Benchmark;
+use pushkind_dantes::domain::category::Category;
 use pushkind_dantes::domain::crawler::Crawler;
 use pushkind_dantes::domain::product::{NewProduct, Product};
 use pushkind_dantes::domain::types::{
-    BenchmarkId, CrawlerId, CrawlerSelectorValue, HubId, ProductId, SimilarityDistance,
+    BenchmarkId, CategoryId, CrawlerId, CrawlerSelectorValue, HubId, ProductId, SimilarityDistance,
 };
 
 pub mod benchmark;
+pub mod category;
 pub mod crawler;
 pub mod product;
 
@@ -86,4 +88,62 @@ pub trait BenchmarkWriter {
         processing: bool,
     ) -> RepositoryResult<usize>;
     fn update_benchmark_stats(&self, benchmark_id: BenchmarkId) -> RepositoryResult<usize>;
+}
+
+/// Provides read access to canonical category records.
+pub trait CategoryReader {
+    fn list_categories(&self, hub_id: HubId) -> RepositoryResult<Vec<Category>>;
+}
+
+/// Provides methods to mutate category records.
+pub trait CategoryWriter {
+    fn set_category_embedding(
+        &self,
+        category_id: CategoryId,
+        embedding: &[f32],
+    ) -> RepositoryResult<usize>;
+}
+
+/// Provides methods to update product-to-category assignments.
+pub trait ProductCategoryWriter {
+    /// Set an automatic category assignment for a product.
+    fn set_product_category_automatic(
+        &self,
+        product_id: ProductId,
+        category_id: Option<CategoryId>,
+    ) -> RepositoryResult<usize>;
+
+    /// Clear category assignments for all products under a crawler.
+    fn clear_product_categories_by_crawler(&self, crawler_id: CrawlerId)
+    -> RepositoryResult<usize>;
+}
+
+/// Provides read methods for hub-scoped processing guard checks.
+pub trait ProcessingGuardReader {
+    /// Returns `true` if any crawler or benchmark in the hub is marked as processing.
+    fn has_any_processing_in_hub(&self, hub_id: HubId) -> RepositoryResult<bool>;
+}
+
+/// Provides write methods for hub-scoped processing guard state transitions.
+pub trait ProcessingGuardWriter {
+    /// Atomically claim hub processing lock by setting crawler/benchmark
+    /// processing flags to `true` when none are currently active.
+    ///
+    /// Returns `Ok(true)` when lock is claimed, `Ok(false)` when already held.
+    fn claim_hub_processing_lock(&self, hub_id: HubId) -> RepositoryResult<bool>;
+
+    /// Release hub processing lock by setting crawler/benchmark processing flags
+    /// to `false`.
+    fn release_hub_processing_lock(&self, hub_id: HubId) -> RepositoryResult<usize>;
+
+    fn set_hub_crawlers_processing(
+        &self,
+        hub_id: HubId,
+        processing: bool,
+    ) -> RepositoryResult<usize>;
+    fn set_hub_benchmarks_processing(
+        &self,
+        hub_id: HubId,
+        processing: bool,
+    ) -> RepositoryResult<usize>;
 }

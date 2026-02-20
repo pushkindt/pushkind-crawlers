@@ -5,6 +5,7 @@ use dotenvy::dotenv;
 use pushkind_common::db::establish_connection_pool;
 use pushkind_crawlers::models::config::ServerConfig;
 use pushkind_crawlers::processing::benchmark::process_benchmark_message;
+use pushkind_crawlers::processing::category::process_product_category_match_message;
 use pushkind_crawlers::processing::crawler::process_crawler_message;
 use pushkind_crawlers::repository::DieselRepository;
 use pushkind_dantes::domain::zmq::ZMQCrawlerMessage;
@@ -89,6 +90,9 @@ async fn main() {
                         }
                         ZMQCrawlerMessage::Benchmark(benchmark) => {
                             process_benchmark_message(benchmark, repo).await
+                        }
+                        ZMQCrawlerMessage::ProductCategoryMatch(hub_id) => {
+                            process_product_category_match_message(hub_id, repo).await
                         }
                     }
                 });
