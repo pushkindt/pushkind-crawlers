@@ -126,6 +126,16 @@ pub trait ProcessingGuardReader {
 
 /// Provides write methods for hub-scoped processing guard state transitions.
 pub trait ProcessingGuardWriter {
+    /// Atomically claim hub processing lock by setting crawler/benchmark
+    /// processing flags to `true` when none are currently active.
+    ///
+    /// Returns `Ok(true)` when lock is claimed, `Ok(false)` when already held.
+    fn claim_hub_processing_lock(&self, hub_id: HubId) -> RepositoryResult<bool>;
+
+    /// Release hub processing lock by setting crawler/benchmark processing flags
+    /// to `false`.
+    fn release_hub_processing_lock(&self, hub_id: HubId) -> RepositoryResult<usize>;
+
     fn set_hub_crawlers_processing(
         &self,
         hub_id: HubId,

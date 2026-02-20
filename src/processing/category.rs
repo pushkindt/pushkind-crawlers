@@ -6,8 +6,8 @@ use crate::processing::embedding::{
     load_or_generate_embedding, product_embedding_prompt, search_top_k,
 };
 use crate::repository::{
-    CategoryReader, CategoryWriter, CrawlerReader, ProcessingGuardReader, ProcessingGuardWriter,
-    ProductCategoryWriter, ProductReader, ProductWriter,
+    CategoryReader, CategoryWriter, CrawlerReader, ProcessingGuardWriter, ProductCategoryWriter,
+    ProductReader, ProductWriter,
 };
 
 /// Category prompt for category-directory embeddings.
@@ -225,46 +225,28 @@ where
 
 fn run_with_hub_processing_guard<R, F, T>(hub_id: HubId, repo: &R, job: F) -> Result<Option<T>, ()>
 where
-    R: ProcessingGuardReader + ProcessingGuardWriter,
+    R: ProcessingGuardWriter,
     F: FnOnce() -> Result<T, ()>,
 {
-    let already_processing = match repo.has_any_processing_in_hub(hub_id) {
+    let claimed = match repo.claim_hub_processing_lock(hub_id) {
         Ok(value) => value,
         Err(error) => {
-            log::error!("Failed to check processing guard for hub {hub_id}: {error:?}");
+            log::error!("Failed to claim processing guard for hub {hub_id}: {error:?}");
             return Err(());
         }
     };
 
-    if already_processing {
+    if !claimed {
         log::warn!(
             "Skipping ProductCategoryMatch for hub {hub_id}: processing already active (skipped_because_processing_active=1)"
         );
         return Ok(None);
     }
 
-    if let Err(error) = repo.set_hub_crawlers_processing(hub_id, true) {
-        log::error!("Failed to set crawler processing guard for hub {hub_id}: {error:?}");
-        return Err(());
-    }
-
-    if let Err(error) = repo.set_hub_benchmarks_processing(hub_id, true) {
-        log::error!("Failed to set benchmark processing guard for hub {hub_id}: {error:?}");
-        if let Err(reset_error) = repo.set_hub_crawlers_processing(hub_id, false) {
-            log::error!(
-                "Failed to rollback crawler processing guard for hub {hub_id}: {reset_error:?}"
-            );
-        }
-        return Err(());
-    }
-
     let outcome = job();
 
-    if let Err(error) = repo.set_hub_crawlers_processing(hub_id, false) {
-        log::error!("Failed to reset crawler processing guard for hub {hub_id}: {error:?}");
-    }
-    if let Err(error) = repo.set_hub_benchmarks_processing(hub_id, false) {
-        log::error!("Failed to reset benchmark processing guard for hub {hub_id}: {error:?}");
+    if let Err(error) = repo.release_hub_processing_lock(hub_id) {
+        log::error!("Failed to release processing guard for hub {hub_id}: {error:?}");
     }
 
     match outcome {
@@ -282,7 +264,6 @@ where
         + CategoryReader
         + CategoryWriter
         + ProductCategoryWriter
-        + ProcessingGuardReader
         + ProcessingGuardWriter,
 {
     log::info!("Received ProductCategoryMatch for hub {hub_id}");
@@ -331,16 +312,16 @@ where
 mod tests {
     use std::sync::Mutex;
 
-    use pushkind_common::repository::errors::{RepositoryError, RepositoryResult};
+    use pushkind_common::repository::errors::RepositoryResult;
     use pushkind_dantes::domain::types::HubId;
 
     use super::{category_prompt, run_with_hub_processing_guard};
-    use crate::repository::{ProcessingGuardReader, ProcessingGuardWriter};
+    use crate::repository::ProcessingGuardWriter;
 
     #[derive(Default)]
     struct GuardState {
-        has_any_processing: bool,
-        fail_set_benchmarks_true: bool,
+        claim_result: Option<bool>,
+        fail_release: bool,
         crawlers_processing: bool,
         benchmarks_processing: bool,
         events: Vec<String>,
@@ -352,11 +333,11 @@ mod tests {
     }
 
     impl FakeGuardRepo {
-        fn with_state(has_any_processing: bool, fail_set_benchmarks_true: bool) -> Self {
+        fn with_state(claim_result: Option<bool>, fail_release: bool) -> Self {
             Self {
                 state: Mutex::new(GuardState {
-                    has_any_processing,
-                    fail_set_benchmarks_true,
+                    claim_result,
+                    fail_release,
                     ..Default::default()
                 }),
             }
@@ -378,14 +359,40 @@ mod tests {
         }
     }
 
-    impl ProcessingGuardReader for FakeGuardRepo {
-        fn has_any_processing_in_hub(&self, _hub_id: HubId) -> RepositoryResult<bool> {
-            let state = self.state.lock().expect("state mutex poisoned");
-            Ok(state.has_any_processing)
-        }
-    }
-
     impl ProcessingGuardWriter for FakeGuardRepo {
+        fn claim_hub_processing_lock(&self, _hub_id: HubId) -> RepositoryResult<bool> {
+            let mut state = self.state.lock().expect("state mutex poisoned");
+            state.events.push("claim_hub_processing_lock".to_string());
+            match state.claim_result {
+                Some(true) => {
+                    state.crawlers_processing = true;
+                    state.benchmarks_processing = true;
+                    Ok(true)
+                }
+                Some(false) => Ok(false),
+                None => Err(
+                    pushkind_common::repository::errors::RepositoryError::Unexpected(
+                        "injected claim failure".to_string(),
+                    ),
+                ),
+            }
+        }
+
+        fn release_hub_processing_lock(&self, _hub_id: HubId) -> RepositoryResult<usize> {
+            let mut state = self.state.lock().expect("state mutex poisoned");
+            state.events.push("release_hub_processing_lock".to_string());
+            if state.fail_release {
+                return Err(
+                    pushkind_common::repository::errors::RepositoryError::Unexpected(
+                        "injected release failure".to_string(),
+                    ),
+                );
+            }
+            state.crawlers_processing = false;
+            state.benchmarks_processing = false;
+            Ok(2)
+        }
+
         fn set_hub_crawlers_processing(
             &self,
             _hub_id: HubId,
@@ -405,14 +412,6 @@ mod tests {
             processing: bool,
         ) -> RepositoryResult<usize> {
             let mut state = self.state.lock().expect("state mutex poisoned");
-            if processing && state.fail_set_benchmarks_true {
-                state
-                    .events
-                    .push("set_hub_benchmarks_processing(true)->err".to_string());
-                return Err(RepositoryError::Unexpected(
-                    "injected benchmark-guard failure".to_string(),
-                ));
-            }
             state.benchmarks_processing = processing;
             state
                 .events
@@ -428,19 +427,19 @@ mod tests {
 
     #[test]
     fn guard_skips_when_processing_is_already_active() {
-        let repo = FakeGuardRepo::with_state(true, false);
+        let repo = FakeGuardRepo::with_state(Some(false), false);
         let hub_id = HubId::new(1).expect("valid hub id");
 
         let result = run_with_hub_processing_guard(hub_id, &repo, || Ok(()));
 
         assert!(matches!(result, Ok(None)));
-        assert!(repo.events().is_empty());
+        assert_eq!(repo.events(), vec!["claim_hub_processing_lock".to_string()]);
         assert_eq!(repo.flags(), (false, false));
     }
 
     #[test]
-    fn guard_sets_true_before_job_and_resets_false_after_success() {
-        let repo = FakeGuardRepo::with_state(false, false);
+    fn guard_claims_before_job_and_releases_after_success() {
+        let repo = FakeGuardRepo::with_state(Some(true), false);
         let hub_id = HubId::new(1).expect("valid hub id");
 
         let result = run_with_hub_processing_guard(hub_id, &repo, || {
@@ -454,18 +453,16 @@ mod tests {
         assert_eq!(
             repo.events(),
             vec![
-                "set_hub_crawlers_processing(true)".to_string(),
-                "set_hub_benchmarks_processing(true)".to_string(),
+                "claim_hub_processing_lock".to_string(),
                 "job_started".to_string(),
-                "set_hub_crawlers_processing(false)".to_string(),
-                "set_hub_benchmarks_processing(false)".to_string(),
+                "release_hub_processing_lock".to_string(),
             ]
         );
     }
 
     #[test]
-    fn guard_resets_flags_after_failure() {
-        let repo = FakeGuardRepo::with_state(false, false);
+    fn guard_releases_flags_after_failure() {
+        let repo = FakeGuardRepo::with_state(Some(true), false);
         let hub_id = HubId::new(1).expect("valid hub id");
 
         let result: Result<Option<()>, ()> = run_with_hub_processing_guard(hub_id, &repo, || {
@@ -478,30 +475,39 @@ mod tests {
         assert_eq!(
             repo.events(),
             vec![
-                "set_hub_crawlers_processing(true)".to_string(),
-                "set_hub_benchmarks_processing(true)".to_string(),
+                "claim_hub_processing_lock".to_string(),
                 "job_started".to_string(),
-                "set_hub_crawlers_processing(false)".to_string(),
-                "set_hub_benchmarks_processing(false)".to_string(),
+                "release_hub_processing_lock".to_string(),
             ]
         );
     }
 
     #[test]
-    fn guard_rolls_back_crawlers_when_setting_benchmarks_true_fails() {
-        let repo = FakeGuardRepo::with_state(false, true);
+    fn guard_errors_when_claim_fails() {
+        let repo = FakeGuardRepo::with_state(None, false);
         let hub_id = HubId::new(1).expect("valid hub id");
 
         let result = run_with_hub_processing_guard(hub_id, &repo, || Ok(()));
 
         assert!(matches!(result, Err(())));
         assert_eq!(repo.flags(), (false, false));
+        assert_eq!(repo.events(), vec!["claim_hub_processing_lock".to_string()]);
+    }
+
+    #[test]
+    fn guard_logs_release_error_but_returns_job_result() {
+        let repo = FakeGuardRepo::with_state(Some(true), true);
+        let hub_id = HubId::new(1).expect("valid hub id");
+
+        let result = run_with_hub_processing_guard(hub_id, &repo, || Ok("ok"));
+
+        assert!(matches!(result, Ok(Some("ok"))));
+        assert_eq!(repo.flags(), (true, true));
         assert_eq!(
             repo.events(),
             vec![
-                "set_hub_crawlers_processing(true)".to_string(),
-                "set_hub_benchmarks_processing(true)->err".to_string(),
-                "set_hub_crawlers_processing(false)".to_string(),
+                "claim_hub_processing_lock".to_string(),
+                "release_hub_processing_lock".to_string(),
             ]
         );
     }

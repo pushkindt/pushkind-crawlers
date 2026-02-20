@@ -132,6 +132,64 @@ impl ProcessingGuardReader for DieselRepository {
 }
 
 impl ProcessingGuardWriter for DieselRepository {
+    fn claim_hub_processing_lock(&self, hub_id: HubId) -> RepositoryResult<bool> {
+        use pushkind_dantes::schema::{benchmarks, crawlers};
+
+        let mut conn = self.conn()?;
+
+        conn.immediate_transaction::<bool, RepositoryError, _>(|conn| {
+            let active_crawlers = crawlers::table
+                .filter(crawlers::hub_id.eq(hub_id.get()))
+                .filter(crawlers::processing.eq(true))
+                .count()
+                .get_result::<i64>(conn)?;
+
+            if active_crawlers > 0 {
+                return Ok(false);
+            }
+
+            let active_benchmarks = benchmarks::table
+                .filter(benchmarks::hub_id.eq(hub_id.get()))
+                .filter(benchmarks::processing.eq(true))
+                .count()
+                .get_result::<i64>(conn)?;
+
+            if active_benchmarks > 0 {
+                return Ok(false);
+            }
+
+            diesel::update(crawlers::table.filter(crawlers::hub_id.eq(hub_id.get())))
+                .set(crawlers::processing.eq(true))
+                .execute(conn)?;
+
+            diesel::update(benchmarks::table.filter(benchmarks::hub_id.eq(hub_id.get())))
+                .set(benchmarks::processing.eq(true))
+                .execute(conn)?;
+
+            Ok(true)
+        })
+    }
+
+    fn release_hub_processing_lock(&self, hub_id: HubId) -> RepositoryResult<usize> {
+        use pushkind_dantes::schema::{benchmarks, crawlers};
+
+        let mut conn = self.conn()?;
+
+        conn.immediate_transaction::<usize, RepositoryError, _>(|conn| {
+            let affected_crawlers =
+                diesel::update(crawlers::table.filter(crawlers::hub_id.eq(hub_id.get())))
+                    .set(crawlers::processing.eq(false))
+                    .execute(conn)?;
+
+            let affected_benchmarks =
+                diesel::update(benchmarks::table.filter(benchmarks::hub_id.eq(hub_id.get())))
+                    .set(benchmarks::processing.eq(false))
+                    .execute(conn)?;
+
+            Ok(affected_crawlers + affected_benchmarks)
+        })
+    }
+
     fn set_hub_crawlers_processing(
         &self,
         hub_id: HubId,
