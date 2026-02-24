@@ -164,7 +164,7 @@ pub(super) fn build_new_product(
         units,
         amount,
         description,
-        url,
+        url: Some(url),
         images,
     })
 }
